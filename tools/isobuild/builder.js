@@ -584,8 +584,6 @@ Previous builder: ${previousBuilder.outputPath}, this builder: ${outputPath}`
 
           const externalPath = getExternalPath();
           if (externalPath) {
-            // Copy from the real path rather than the link path.
-            thisAbsFrom = externalPath;
 
             // Update fileStatus to match the actual file rather than the
             // symbolic link, thus forcing the file to be copied below.
