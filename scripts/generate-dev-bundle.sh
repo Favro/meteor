@@ -3,6 +3,8 @@
 set -e
 set -u
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # Read the bundle version from the meteor shell script.
 BUNDLE_VERSION=$(perl -ne 'print $1 if /BUNDLE_VERSION=(\S+)/' meteor)
 if [ -z "$BUNDLE_VERSION" ]; then
@@ -10,7 +12,9 @@ if [ -z "$BUNDLE_VERSION" ]; then
     exit 1
 fi
 
-source "$(dirname $0)/build-dev-bundle-common.sh"
+source "$SCRIPT_DIR/build-dev-bundle-common.sh"
+source "$SCRIPT_DIR/local-settings.sh"
+
 echo CHECKOUT DIR IS "$CHECKOUT_DIR"
 echo BUILDING DEV BUNDLE "$BUNDLE_VERSION" IN "$DIR"
 

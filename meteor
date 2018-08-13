@@ -49,7 +49,7 @@ while true; do
 done
 cd "$ORIG_DIR"
 
-
+source "$SCRIPT_DIR/scripts/local-settings.sh"
 
 function install_dev_bundle {
     set -e
