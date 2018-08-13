@@ -15,10 +15,27 @@ fi
 source "$SCRIPT_DIR/build-dev-bundle-common.sh"
 source "$SCRIPT_DIR/local-settings.sh"
 
+if [[ "$METEOR_DEV_BUNDLE_EXTERNAL_VERSION" == "true" ]] ; then
+    BUNDLE_VERSION="UNKNOWN"
+fi
+
+if [[ "$METEOR_DEV_BUNDLE_OUTPUT_TAR" == "" ]] ; then
+    METEOR_DEV_BUNDLE_OUTPUT_TAR="${CHECKOUT_DIR}/dev_bundle_${PLATFORM}_${BUNDLE_VERSION}.tar.gz"
+fi
+
 echo CHECKOUT DIR IS "$CHECKOUT_DIR"
-echo BUILDING DEV BUNDLE "$BUNDLE_VERSION" IN "$DIR"
+echo BUILDING DEV BUNDLE "$BUNDLE_VERSION" IN "$DIR" to "$METEOR_DEV_BUNDLE_OUTPUT_TAR"
 
 cd "$DIR"
+
+extractNodeFromLocalTarGz() {
+    if [ -f "$METEOR_DEV_BUNDLE_LOCAL_NODE" ] ; then
+        echo "Skipping download and installing Node from local $METEOR_DEV_BUNDLE_LOCAL_NODE" >&2
+        tar --strip-components 1 -zxf "$METEOR_DEV_BUNDLE_LOCAL_NODE"
+        return 0
+    fi
+    return 1
+}
 
 extractNodeFromTarGz() {
     LOCAL_TGZ="${CHECKOUT_DIR}/node_${PLATFORM}_v${NODE_VERSION}.tar.gz"
@@ -53,45 +70,54 @@ downloadReleaseCandidateNode() {
 }
 
 # Try each strategy in the following order:
-extractNodeFromTarGz || downloadNodeFromS3 || \
+extractNodeFromLocalTarGz || extractNodeFromTarGz || downloadNodeFromS3 || \
   downloadOfficialNode || downloadReleaseCandidateNode
 
-# Download Mongo from mongodb.com. Will download a 64-bit version of Mongo
-# by default. Will download a 32-bit version of Mongo if using a 32-bit based
-# OS.
-MONGO_VERSION=$MONGO_VERSION_64BIT
-MONGO_SSL="-ssl"
+if [[ "$METEOR_DEV_BUNDLE_LOCAL_MONGO" != "" ]] ; then
+    echo "Copying mongodb from local dir: $METEOR_DEV_BUNDLE_LOCAL_MONGO"
+    mkdir -p "mongodb/bin"
+    cp "${METEOR_DEV_BUNDLE_LOCAL_MONGO}/bin/mongod" "mongodb/bin"
+    cp "${METEOR_DEV_BUNDLE_LOCAL_MONGO}/bin/mongo" "mongodb/bin"
+else
+    # Download Mongo from mongodb.com. Will download a 64-bit version of Mongo
+    # by default. Will download a 32-bit version of Mongo if using a 32-bit based
+    # OS.
+    MONGO_VERSION=$MONGO_VERSION_64BIT
+    MONGO_SSL="-ssl"
 
-# The MongoDB "Generic" Linux option is not offered with SSL, which is reserved
-# for named distributions.  This works out better since the SSL support adds
-# size to the dev bundle though isn't necessary for local development.
-if [ $UNAME = "Linux" ]; then
-  MONGO_SSL=""
+    # The MongoDB "Generic" Linux option is not offered with SSL, which is reserved
+    # for named distributions.  This works out better since the SSL support adds
+    # size to the dev bundle though isn't necessary for local development.
+    if [ $UNAME = "Linux" ]; then
+      MONGO_SSL=""
+    fi
+
+    if [ $ARCH = "i686" ]; then
+      MONGO_VERSION=$MONGO_VERSION_32BIT
+    fi
+    
+    MONGO_NAME="mongodb-${OS}-${ARCH}-${MONGO_VERSION}"
+    MONGO_NAME_SSL="mongodb-${OS}${MONGO_SSL}-${ARCH}-${MONGO_VERSION}"
+    MONGO_TGZ="${MONGO_NAME_SSL}.tgz"
+    MONGO_URL="http://fastdl.mongodb.org/${OS}/${MONGO_TGZ}"
+    echo "Downloading Mongo from ${MONGO_URL}"
+    curl "${MONGO_URL}" | tar zx
+
+    # Put Mongo binaries in the right spot (mongodb/bin)
+    mkdir -p "mongodb/bin"
+    mv "${MONGO_NAME}/bin/mongod" "mongodb/bin"
+    mv "${MONGO_NAME}/bin/mongo" "mongodb/bin"
+    rm -rf "${MONGO_NAME}"
 fi
-
-if [ $ARCH = "i686" ]; then
-  MONGO_VERSION=$MONGO_VERSION_32BIT
-fi
-
-MONGO_NAME="mongodb-${OS}-${ARCH}-${MONGO_VERSION}"
-MONGO_NAME_SSL="mongodb-${OS}${MONGO_SSL}-${ARCH}-${MONGO_VERSION}"
-MONGO_TGZ="${MONGO_NAME_SSL}.tgz"
-MONGO_URL="http://fastdl.mongodb.org/${OS}/${MONGO_TGZ}"
-echo "Downloading Mongo from ${MONGO_URL}"
-curl "${MONGO_URL}" | tar zx
-
-# Put Mongo binaries in the right spot (mongodb/bin)
-mkdir -p "mongodb/bin"
-mv "${MONGO_NAME}/bin/mongod" "mongodb/bin"
-mv "${MONGO_NAME}/bin/mongo" "mongodb/bin"
-rm -rf "${MONGO_NAME}"
 
 # export path so we use the downloaded node and npm
 export PATH="$DIR/bin:$PATH"
 
-cd "$DIR/lib"
-# Overwrite the bundled version with the latest version of npm.
-npm install "npm@$NPM_VERSION"
+if [[ "$METEOR_DEV_BUNDLE_OVERRIDE_NPM" != "false" ]] ; then
+    cd "$DIR/lib"
+    # Overwrite the bundled version with the latest version of npm.
+    npm install "npm@$NPM_VERSION"
+fi
 
 which node
 which npm
@@ -214,9 +240,14 @@ fi
 echo BUNDLING
 
 cd "$DIR"
-echo "${BUNDLE_VERSION}" > .bundle_version.txt
+
+if [[ "$BUNDLE_VERSION" != "UNKNOWN" ]] ; then
+    echo "${BUNDLE_VERSION}" > .bundle_version.txt
+fi
+
 rm -rf build CHANGELOG.md ChangeLog LICENSE README.md .npm
 
-tar czf "${CHECKOUT_DIR}/dev_bundle_${PLATFORM}_${BUNDLE_VERSION}.tar.gz" .
+mkdir -p "$( dirname "$METEOR_DEV_BUNDLE_OUTPUT_TAR" )"
+tar czf "$METEOR_DEV_BUNDLE_OUTPUT_TAR" .
 
 echo DONE
