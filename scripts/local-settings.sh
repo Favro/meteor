@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+SAVED_OPTIONS=$(set +o)
+
+set -e
+set -u
+
+LOCAL_SETTINGS_SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
+LOCAL_SETTINGS_FILE="$LOCAL_SETTINGS_SCRIPT_DIR/meteor_local_settings.sh"
+
+if [ -x "$LOCAL_SETTINGS_FILE" ] ; then
+    source "$LOCAL_SETTINGS_FILE"
+else
+    METEOR_DEV_BUNDLE_EXTERNAL_VERSION=""
+    METEOR_DEV_BUNDLE_OUTPUT_TAR=""
+    METEOR_DEV_BUNDLE_LOCAL_TARBALL=""
+    METEOR_DEV_BUNDLE_LOCAL_MONGO=""
+    METEOR_DEV_BUNDLE_LOCAL_NODE=""
+    METEOR_DEV_BUNDLE_OVERRIDE_NPM="true"
+fi
+
+eval "$SAVED_OPTIONS"
