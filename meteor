@@ -71,7 +71,14 @@ function install_dev_bundle {
         DEV_BUNDLE_URL_ROOT="https://s3.amazonaws.com/com.meteor.static/test/"
     fi
 
-    if [ -f "$SCRIPT_DIR/$TARBALL" ] ; then
+    if [ -n "$METEOR_DEV_BUNDLE_LOCAL_TARBALL" ] ; then
+        echo "Skipping download and installing kit from local $METEOR_DEV_BUNDLE_LOCAL_TARBALL" >&2
+        echo tar -xzf "$METEOR_DEV_BUNDLE_LOCAL_TARBALL" -C "$BUNDLE_TMPDIR"
+        tar -xzf "$METEOR_DEV_BUNDLE_LOCAL_TARBALL" -C "$BUNDLE_TMPDIR"
+        if [ -f "${METEOR_DEV_BUNDLE_LOCAL_TARBALL}.version" ]; then
+            cp "${METEOR_DEV_BUNDLE_LOCAL_TARBALL}.version" "$BUNDLE_TMPDIR/.bundle_version.txt"
+        fi
+    elif [ -f "$SCRIPT_DIR/$TARBALL" ] ; then
         echo "Skipping download and installing kit from $SCRIPT_DIR/$TARBALL" >&2
         tar -xzf "$SCRIPT_DIR/$TARBALL" -C "$BUNDLE_TMPDIR"
     elif [ -n "$SAVE_DEV_BUNDLE_TARBALL" ] ; then
