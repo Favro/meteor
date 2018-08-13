@@ -80,7 +80,8 @@ cd "$SCRIPTS_DIR/.."
 CHECKOUT_DIR=$(pwd)
 
 DIR=$(mktemp -d -t generate-dev-bundle-XXXXXXXX)
-trap 'rm -rf "$DIR" >/dev/null 2>&1' 0
+METEOR_DEV_BUNDLE_TEMP_DIRECTORY="$DIR"
+trap 'rm -rf "$METEOR_DEV_BUNDLE_TEMP_DIRECTORY" >/dev/null 2>&1' 0
 
 cd "$DIR"
 chmod 755 .
