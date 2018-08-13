@@ -3,6 +3,8 @@
 set -e
 set -u
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # Read the bundle version from the meteor shell script.
 BUNDLE_VERSION=$(perl -ne 'print $1 if /BUNDLE_VERSION=(\S+)/' meteor)
 if [ -z "$BUNDLE_VERSION" ]; then
@@ -10,11 +12,30 @@ if [ -z "$BUNDLE_VERSION" ]; then
     exit 1
 fi
 
-source "$(dirname $0)/build-dev-bundle-common.sh"
+source "$SCRIPT_DIR/build-dev-bundle-common.sh"
+source "$SCRIPT_DIR/local-settings.sh"
+
+if [[ "$METEOR_DEV_BUNDLE_EXTERNAL_VERSION" == "true" ]] ; then
+    BUNDLE_VERSION="UNKNOWN"
+fi
+
+if [[ "$METEOR_DEV_BUNDLE_OUTPUT_TAR" == "" ]] ; then
+    METEOR_DEV_BUNDLE_OUTPUT_TAR="${CHECKOUT_DIR}/dev_bundle_${PLATFORM}_${BUNDLE_VERSION}.tar.gz"
+fi
+
 echo CHECKOUT DIR IS "$CHECKOUT_DIR"
-echo BUILDING DEV BUNDLE "$BUNDLE_VERSION" IN "$DIR"
+echo BUILDING DEV BUNDLE "$BUNDLE_VERSION" IN "$DIR" to "$METEOR_DEV_BUNDLE_OUTPUT_TAR"
 
 cd "$DIR"
+
+extractNodeFromLocalTarGz() {
+    if [ -f "$METEOR_DEV_BUNDLE_LOCAL_NODE" ] ; then
+        echo "Skipping download and installing Node from local $METEOR_DEV_BUNDLE_LOCAL_NODE" >&2
+        tar --strip-components 1 -zxf "$METEOR_DEV_BUNDLE_LOCAL_NODE"
+        return 0
+    fi
+    return 1
+}
 
 extractNodeFromTarGz() {
     LOCAL_TGZ="${CHECKOUT_DIR}/node_${PLATFORM}_v${NODE_VERSION}.tar.gz"
@@ -49,45 +70,56 @@ downloadReleaseCandidateNode() {
 }
 
 # Try each strategy in the following order:
-extractNodeFromTarGz || downloadNodeFromS3 || \
+extractNodeFromLocalTarGz || extractNodeFromTarGz || downloadNodeFromS3 || \
   downloadOfficialNode || downloadReleaseCandidateNode
 
-# On macOS, download MongoDB from mongodb.com. On Linux, download a custom build
-# that is compatible with current distributions. If a 32-bit Linux is used,
-# download a 32-bit legacy version from mongodb.com instead.
-MONGO_VERSION=$MONGO_VERSION_64BIT
+if [[ "$METEOR_DEV_BUNDLE_LOCAL_MONGO" != "" ]] ; then
+    echo "Copying mongodb from local dir: $METEOR_DEV_BUNDLE_LOCAL_MONGO"
+    mkdir -p "mongodb/bin"
+    cp "${METEOR_DEV_BUNDLE_LOCAL_MONGO}/bin/mongod" "mongodb/bin"
+    cp "${METEOR_DEV_BUNDLE_LOCAL_MONGO}/bin/mongo" "mongodb/bin"
+else
+    # On macOS, download MongoDB from mongodb.com. On Linux, download a custom build
+    # that is compatible with current distributions. If a 32-bit Linux is used,
+    # download a 32-bit legacy version from mongodb.com instead.
+    MONGO_VERSION=$MONGO_VERSION_64BIT
 
-if [ $ARCH = "i686" ] && [ $OS = "linux" ]; then
-    MONGO_VERSION=$MONGO_VERSION_32BIT
+    if [ $ARCH = "i686" ] && [ $OS = "linux" ]; then
+        MONGO_VERSION=$MONGO_VERSION_32BIT
+    fi
+
+    case $OS in
+        macos) MONGO_BASE_URL="https://fastdl.mongodb.org/osx" ;;
+        linux)
+            [ $ARCH = "i686" ] &&
+                MONGO_BASE_URL="https://fastdl.mongodb.org/linux" ||
+                MONGO_BASE_URL="https://github.com/meteor/mongodb-builder/releases/download/v${MONGO_VERSION}"
+            ;;
+    esac
+
+    MONGO_NAME="mongodb-${OS}-${ARCH}-${MONGO_VERSION}"
+    MONGO_TGZ="${MONGO_NAME}.tgz"
+    MONGO_URL="${MONGO_BASE_URL}/${MONGO_TGZ}"
+    echo "Downloading Mongo from ${MONGO_URL}"
+    curl -L "${MONGO_URL}" | tar zx
+
+    # Put Mongo binaries in the right spot (mongodb/bin)
+    mkdir -p "mongodb/bin"
+    mv "${MONGO_NAME}/bin/mongod" "mongodb/bin"
+    mv "${MONGO_NAME}/bin/mongo" "mongodb/bin"
+    rm -rf "${MONGO_NAME}"
 fi
-
-case $OS in
-    macos) MONGO_BASE_URL="https://fastdl.mongodb.org/osx" ;;
-    linux)
-        [ $ARCH = "i686" ] &&
-            MONGO_BASE_URL="https://fastdl.mongodb.org/linux" ||
-            MONGO_BASE_URL="https://github.com/meteor/mongodb-builder/releases/download/v${MONGO_VERSION}"
-        ;;
-esac
-
-MONGO_NAME="mongodb-${OS}-${ARCH}-${MONGO_VERSION}"
-MONGO_TGZ="${MONGO_NAME}.tgz"
-MONGO_URL="${MONGO_BASE_URL}/${MONGO_TGZ}"
-echo "Downloading Mongo from ${MONGO_URL}"
-curl -L "${MONGO_URL}" | tar zx
-
-# Put Mongo binaries in the right spot (mongodb/bin)
-mkdir -p "mongodb/bin"
-mv "${MONGO_NAME}/bin/mongod" "mongodb/bin"
-mv "${MONGO_NAME}/bin/mongo" "mongodb/bin"
-rm -rf "${MONGO_NAME}"
 
 # export path so we use the downloaded node and npm
 export PATH="$DIR/bin:$PATH"
 
-cd "$DIR/lib"
-# Overwrite the bundled version with the latest version of npm.
-npm install "npm@$NPM_VERSION"
+if [[ "$METEOR_DEV_BUNDLE_OVERRIDE_NPM" != "false" ]] ; then
+    cd "$DIR/lib"
+    # Overwrite the bundled version with the latest version of npm.
+    npm install "npm@$NPM_VERSION"
+else
+    echo "Skipping install of npm"
+fi
 
 which node
 which npm
@@ -132,7 +164,13 @@ mv package.json npm-shrinkwrap.json "${DIR}/etc/"
 # tool.
 mkdir "${DIR}/build/npm-tool-install"
 cd "${DIR}/build/npm-tool-install"
-node "${CHECKOUT_DIR}/scripts/dev-bundle-tool-package.js" >package.json
+if [[ "$METEOR_DEV_BUNDLE_OVERRIDE_NPM" == "false" ]] ; then
+    sed -e 's/npm:/\/\/ npm:/g' "${CHECKOUT_DIR}/scripts/dev-bundle-tool-package.js" > "$DIR/dev-bundle-tool-package.js"
+    node "$DIR/dev-bundle-tool-package.js" >package.json
+    rm -f "$DIR/dev-bundle-tool-package.js"
+else
+    node "${CHECKOUT_DIR}/scripts/dev-bundle-tool-package.js" >package.json
+fi
 npm install
 cp -R node_modules/* "${DIR}/lib/node_modules/"
 # Also include node_modules/.bin, so that `meteor npm` can make use of
@@ -175,7 +213,7 @@ find . -path '*/esprima-fb/test' | xargs rm -rf
 # Sanity check to see if we're not breaking anything by replacing npm
 INSTALLED_NPM_VERSION=$(cat "$DIR/lib/node_modules/npm/package.json" |
 xargs -0 node -e "console.log(JSON.parse(process.argv[1]).version)")
-if [ "$INSTALLED_NPM_VERSION" != "$NPM_VERSION" ]; then
+if [ "$INSTALLED_NPM_VERSION" != "$NPM_VERSION" ] && [[ "$METEOR_DEV_BUNDLE_OVERRIDE_NPM" != "false" ]]; then
   echo "Unexpected NPM version in lib/node_modules: $INSTALLED_NPM_VERSION"
   echo "Update this check if you know what you're doing."
   exit 1
@@ -184,9 +222,14 @@ fi
 echo BUNDLING
 
 cd "$DIR"
-echo "${BUNDLE_VERSION}" > .bundle_version.txt
+
+if [[ "$BUNDLE_VERSION" != "UNKNOWN" ]] ; then
+    echo "${BUNDLE_VERSION}" > .bundle_version.txt
+fi
+
 rm -rf build CHANGELOG.md ChangeLog LICENSE README.md .npm
 
-tar czf "${CHECKOUT_DIR}/dev_bundle_${PLATFORM}_${BUNDLE_VERSION}.tar.gz" .
+mkdir -p "$( dirname "$METEOR_DEV_BUNDLE_OUTPUT_TAR" )"
+tar czf "$METEOR_DEV_BUNDLE_OUTPUT_TAR" .
 
 echo DONE
