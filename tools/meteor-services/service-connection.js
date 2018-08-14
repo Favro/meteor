@@ -33,7 +33,7 @@ var ServiceConnection = function (endpointUrl, options) {
     // We found that this was likely to time out with the DDP default of 10s,
     // especially if the CPU is churning on bundling (eg, for the stats
     // connection which we start in parallel with bundling).
-    connectTimeoutMs: 30000,
+    connectTimeoutMs: 90000,
     // Disable client->server heartbeats for service connections.  Users with
     // slow internet connections were seeing heartbeat timeouts because the
     // heartbeats were buried behind large responses (eg
