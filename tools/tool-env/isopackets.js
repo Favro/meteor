@@ -241,7 +241,7 @@ export async function ensureIsopacketsLoadable() {
 }
 
 // Returns a new all-local-packages catalog to be used for building isopackets.
-var newIsopacketBuildingCatalog = async function () {
+export async function newIsopacketBuildingCatalog() {
   if (!files.inCheckout()) {
     throw Error("No need to build isopackets unless in checkout!");
   }
