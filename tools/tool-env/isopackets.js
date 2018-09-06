@@ -233,7 +233,7 @@ export function ensureIsopacketsLoadable() {
 }
 
 // Returns a new all-local-packages catalog to be used for building isopackets.
-var newIsopacketBuildingCatalog = function () {
+export function newIsopacketBuildingCatalog() {
   if (! files.inCheckout()) {
     throw Error("No need to build isopackets unless in checkout!");
   }
