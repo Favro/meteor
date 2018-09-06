@@ -816,7 +816,7 @@ main.registerCommand({
     // If we are on a checkout, we don't need to do this as running from
     // checkout still pins all package versions and if the user updates
     // to a real release, the packages file will subsequently get updated
-    if (!release.current.isCheckout()) {
+    if (!release.current.isCheckout() || process.env.METEOR_CHECKOUT_IS_RELEASE) {
       projectContext.projectConstraintsFile
         .updateReleaseConstraints(release.current._manifest);
     }
