@@ -9,6 +9,7 @@ var httpHelpers = require('../utils/http-helpers.js');
 var compiler = require('../isobuild/compiler.js');
 var catalog = require('../packaging/catalog/catalog.js');
 var catalogRemote = require('../packaging/catalog/catalog-remote.js');
+var catalogLocal = require('../packaging/catalog/catalog-local.js');
 var isopack = require('../isobuild/isopack.js');
 var updater = require('../packaging/updater.js');
 var Console = require('../console/console.js').Console;
@@ -22,6 +23,10 @@ var updater = require('../packaging/updater.js');
 var packageMapModule = require('../packaging/package-map.js');
 var packageClient = require('../packaging/package-client.js');
 var tropohouse = require('../packaging/tropohouse.js');
+
+import {
+  newIsopacketBuildingCatalog,
+} from '../tool-env/isopackets.js';
 
 import {
   ensureDevBundleDependencies,
@@ -1446,6 +1451,49 @@ var getNewerVersion = function (packageName, curVersion, whichCatalog) {
 ///////////////////////////////////////////////////////////////////////////////
 // update
 ///////////////////////////////////////////////////////////////////////////////
+var doUpdateRelease = function (options, projectContext, releaseName, releaseRecord) {
+  // We could at this point springboard to solutionRelease (which is no newer
+  // than the release we are currently running), but there's no super-clear
+  // advantage to this yet. The main reason might be if we decide to delete some
+  // backward-compatibility code which knows how to deal with an older release,
+  // but if we actually do that, we can change this code to add the extra
+  // springboard at that time.
+  var upgraders = require('../upgraders.js');
+  var upgradersToRun = upgraders.upgradersToRun(projectContext);
+
+  // Update every package in .meteor/packages to be (semver)>= the version
+  // set for that package in the release we are updating to
+  projectContext.projectConstraintsFile.updateReleaseConstraints(releaseRecord);
+
+  // Download and build packages and write the new versions to .meteor/versions.
+  // XXX It's a little weird that we do a full preparation for build
+  //     (downloading packages, building packages, etc) when we might be about
+  //     to upgrade packages and have to do it again. Maybe we shouldn't? Note
+  //     that if we change this, that changes the upgraders interface, which
+  //     expects a projectContext that is fully prepared for build.
+  main.captureAndExit("=> Errors while initializing project:", function () {
+    projectContext.prepareProjectForBuild();
+  });
+
+  if (releaseName)
+    projectContext.writeReleaseFileAndDevBundleLink(releaseName);
+
+  projectContext.packageMapDelta.displayOnConsole({
+    title: ("Changes to your project's package version selections from " +
+            "updating the release:")
+  });
+
+  Console.info(files.pathBasename(options.appDir) + ": updated to " +
+               projectContext.releaseFile.displayReleaseName + ".");
+
+  // Now run the upgraders.
+  // XXX should we also run upgraders on other random commands, in case there
+  // was a crash after changing .meteor/release but before running them?
+  _.each(upgradersToRun, function (upgrader) {
+    upgraders.runUpgrader(projectContext, upgrader);
+    projectContext.finishedUpgraders.appendUpgraders([upgrader]);
+  });
+}
 
 // Returns 0 if the operation went OK -- either we updated to a new release, or
 // decided not to with good reason. Returns something other than 0, if it is not
@@ -1459,9 +1507,23 @@ var maybeUpdateRelease = function (options) {
 
   // We are running from checkout, so we are not updating the release.
   if (release.current && release.current.isCheckout()) {
-    Console.error(
-      "You are running Meteor from a checkout, so we cannot update",
-      "the Meteor release. Checking to see if we can update your packages.");
+    if (!process.env.METEOR_CHECKOUT_IS_RELEASE) {
+      Console.error(
+        "You are running Meteor from a checkout, so we cannot update",
+        "the Meteor release. Checking to see if we can update your packages.");
+      return 0;
+    }
+
+    var projectContext = new projectContextModule.ProjectContext({
+      projectDir: options.appDir,
+      alwaysWritePackageMap: true,
+      allowIncompatibleUpdate: true // disregard `.meteor/versions` if necessary
+    });
+    main.captureAndExit("=> Errors while initializing project:", function () {
+      projectContext.readProjectMetadata();
+    });
+
+    doUpdateRelease(options, projectContext, null, newIsopacketBuildingCatalog().getReleaseRecord());
     return 0;
   }
 
@@ -1683,48 +1745,8 @@ var maybeUpdateRelease = function (options) {
   }
 
   var releaseName = `${releaseTrack}@${releaseVersion}`;
-
-  // We could at this point springboard to solutionRelease (which is no newer
-  // than the release we are currently running), but there's no super-clear
-  // advantage to this yet. The main reason might be if we decide to delete some
-  // backward-compatibility code which knows how to deal with an older release,
-  // but if we actually do that, we can change this code to add the extra
-  // springboard at that time.
-  var upgraders = require('../upgraders.js');
-  var upgradersToRun = upgraders.upgradersToRun(projectContext);
-
-  // Update every package in .meteor/packages to be (semver)>= the version
-  // set for that package in the release we are updating to
   var releaseRecord = catalog.official.getReleaseVersion(releaseTrack, releaseVersion);
-  projectContext.projectConstraintsFile.updateReleaseConstraints(releaseRecord);
-
-  // Download and build packages and write the new versions to .meteor/versions.
-  // XXX It's a little weird that we do a full preparation for build
-  //     (downloading packages, building packages, etc) when we might be about
-  //     to upgrade packages and have to do it again. Maybe we shouldn't? Note
-  //     that if we change this, that changes the upgraders interface, which
-  //     expects a projectContext that is fully prepared for build.
-  main.captureAndExit("=> Errors while initializing project:", function () {
-    projectContext.prepareProjectForBuild();
-  });
-
-  projectContext.writeReleaseFileAndDevBundleLink(releaseName);
-
-  projectContext.packageMapDelta.displayOnConsole({
-    title: ("Changes to your project's package version selections from " +
-            "updating the release:")
-  });
-
-  Console.info(files.pathBasename(options.appDir) + ": updated to " +
-               projectContext.releaseFile.displayReleaseName + ".");
-
-  // Now run the upgraders.
-  // XXX should we also run upgraders on other random commands, in case there
-  // was a crash after changing .meteor/release but before running them?
-  _.each(upgradersToRun, function (upgrader) {
-    upgraders.runUpgrader(projectContext, upgrader);
-    projectContext.finishedUpgraders.appendUpgraders([upgrader]);
-  });
+  doUpdateRelease(options, projectContext, releaseName, releaseRecord);
 
   // We are done, and we should pass the release that we upgraded to, to the
   // user.
