@@ -128,6 +128,32 @@ _.extend(LocalCatalog.prototype, {
       throw new Error("catalog not initialized yet?");
   },
 
+  // Return an object suitable as a release record
+  getReleaseRecord: function () {
+    var self = this;
+    self._requireInitialized();
+    var record = {
+      track: 'METEOR',
+      version: 'checkout',
+      orderKey: 'zzz',
+      description: 'The release represented by the current checkout',
+      recommended: true,
+      tool: 'meteor-tool@???',
+      packages: {},
+      publishedBy: { username: 'local', id: 'local' },
+      lastUpdated: new Date().toString(),
+      published: new Date().toString()
+    };
+
+    for (let [packageName, package] of Object.entries(self.packages)) {
+      if (package.versionRecord.isTest)
+        continue;
+      record.packages[packageName] = package.versionRecord.version;
+    }
+
+    return record;
+  },
+
   // Return an array with the names of all of the packages that we know about,
   // in no particular order.
   getAllPackageNames: function (options) {
