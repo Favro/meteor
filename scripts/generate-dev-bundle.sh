@@ -148,6 +148,8 @@ mkdir "${DIR}/build/npm-server-install"
 cd "${DIR}/build/npm-server-install"
 node "${CHECKOUT_DIR}/scripts/dev-bundle-server-package.js" > package.json
 npm install
+npm outdated
+npm audit || true
 npm shrinkwrap
 
 mkdir -p "${DIR}/server-lib/node_modules"
@@ -182,6 +184,8 @@ else
     node "${CHECKOUT_DIR}/scripts/dev-bundle-tool-package.js" >package.json
 fi
 npm install
+npm outdated
+npm audit || true
 cp -R node_modules/* "${DIR}/lib/node_modules/"
 # Also include node_modules/.bin, so that `meteor npm` can make use of
 # commands like node-gyp and node-pre-gyp.
