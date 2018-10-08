@@ -121,6 +121,15 @@ _.extend(Module.prototype, {
       const eagerFiles = _.filter(self.files, file => ! file.lazy);
 
       return _.map(eagerFiles, function (file) {
+        if (file.bare) {
+          return {
+            source: file.source,
+            sourcePath: file.sourcePath,
+            servePath: file.servePath,
+            sourceMap: file.sourceMap,
+          };
+        }
+
         const cacheKey = JSON.stringify([
           file._inputHash,
           file.bare,
