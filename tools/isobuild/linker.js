@@ -129,6 +129,16 @@ Object.assign(Module.prototype, {
 
       const ret = [];
       for (const file of eagerFiles) {
+        if (file.bare) {
+          ret.push({
+            source: file.source,
+            sourcePath: file.sourcePath,
+            servePath: file.servePath,
+            sourceMap: file.sourceMap,
+          });
+          continue;
+        }
+
         const cacheKey = JSON.stringify([
           file._inputHash,
           file.bare,
