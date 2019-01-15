@@ -592,6 +592,8 @@ class ResourceSlot {
   // original data. #HardcodeJs
   _addDirectlyToJsOutputResources() {
     this.addJavaScript({
+      bare: this.inputResource.bare,
+      sourceMap: this.inputResource.sourceMap,
       ...(this.inputResource.fileOptions || {}),
       path: this.inputResource.path,
       data: this.inputResource.data,
