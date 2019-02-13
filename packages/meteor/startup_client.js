@@ -6,6 +6,9 @@ var isReady = false;
 // before we're considered ready.
 var readyHoldsCount = 0;
 
+if (window.meteorExtraReadyHolds === undefined)
+  window.meteorExtraReadyHolds = 0;
+
 var holdReady =  function () {
   readyHoldsCount++;
 }
@@ -16,7 +19,7 @@ var releaseReadyHold = function () {
 }
 
 var maybeReady = function () {
-  if (isReady || !isLoadingCompleted || readyHoldsCount > 0)
+  if (isReady || !isLoadingCompleted || readyHoldsCount > 0 || window.meteorExtraReadyHolds > 0)
     return;
 
   isReady = true;
@@ -62,6 +65,9 @@ if (document.readyState === 'complete' || document.readyState === 'loaded') {
   }
 }
 
+Meteor.holdReady = holdReady;
+Meteor.releaseReadyHold = releaseReadyHold;
+Meteor.maybeReady = maybeReady;
 /**
  * @summary Run code when a client or a server starts.
  * @locus Anywhere
