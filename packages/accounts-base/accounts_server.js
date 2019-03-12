@@ -665,9 +665,7 @@ export class AccountsServer extends AccountsCommon {
 
   _initAccountDataHooks() {
     this._server.onConnection(connection => {
-      this._accountData[connection.id] = {
-        connection: connection
-      };
+      this._setAccountData(connection.id, 'connection', connection);
 
       connection.onClose(() => {
         this._removeTokenFromConnection(connection.id);
@@ -761,12 +759,10 @@ export class AccountsServer extends AccountsCommon {
   };
 
   _setAccountData(connectionId, field, value) {
-    const data = this._accountData[connectionId];
+    let data = this._accountData[connectionId];
 
-    // safety belt. shouldn't happen. accountData is set in onConnection,
-    // we don't have a connectionId until it is set.
     if (!data)
-      return;
+      data = this._accountData[connectionId] = {};
 
     if (value === undefined)
       delete data[field];
