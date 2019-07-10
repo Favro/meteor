@@ -8,11 +8,15 @@ import {AccountsCommon} from "./accounts_common.js";
  * @instancename accountsClient
  * @param {Object} options an object with fields:
  * @param {Object} options.connection Optional DDP connection to reuse.
+ * @param {String} options.localStorageNamespace Optional namespace for local storage keys.
  * @param {String} options.ddpUrl Optional URL for creating a new DDP connection.
  */
 export class AccountsClient extends AccountsCommon {
   constructor(options) {
     super(options);
+
+    if (options && options.localStorageNamespace)
+      this.localStorageNamespace = options.localStorageNamespace;
 
     this._loggingIn = new ReactiveVar(false);
     this._loggingOut = new ReactiveVar(false);
@@ -202,7 +206,7 @@ export class AccountsClient extends AccountsCommon {
   //                 logged in, or with the error on error.
   //
   callLoginMethod(options) {
-    options = { 
+    options = {
       methodName: 'login',
       methodArguments: [{}],
       _suppressLoggingIn: false,
@@ -380,7 +384,7 @@ export class AccountsClient extends AccountsCommon {
     this.connection.setUserId(null);
     this._reconnectStopper && this._reconnectStopper.stop();
   }
-  
+
   makeClientLoggedIn(userId, token, tokenExpires) {
     this._storeLoginToken(userId, token, tokenExpires);
     this.connection.setUserId(userId);
@@ -542,18 +546,25 @@ export class AccountsClient extends AccountsCommon {
     this.LOGIN_TOKEN_EXPIRES_KEY = "Meteor.loginTokenExpires";
     this.USER_ID_KEY = "Meteor.userId";
 
+    let namespace = this.localStorageNamespace ||
+      __meteor_runtime_config__.LOCAL_STORAGE_NAMESPACE;
+
     const rootUrlPathPrefix = __meteor_runtime_config__.ROOT_URL_PATH_PREFIX;
-    if (rootUrlPathPrefix || this.connection !== Meteor.connection) {
+    if (namespace === undefined &&
+      (rootUrlPathPrefix || this.connection !== Meteor.connection)) {
       // We want to keep using the same keys for existing apps that do not
       // set a custom ROOT_URL_PATH_PREFIX, so that most users will not have
       // to log in again after an app updates to a version of Meteor that
       // contains this code, but it's generally preferable to namespace the
       // keys so that connections from distinct apps to distinct DDP URLs
       // will be distinct in Meteor._localStorage.
-      let namespace = `:${this.connection._stream.rawUrl}`;
+      namespace = `:${this.connection._stream.rawUrl}`;
       if (rootUrlPathPrefix) {
         namespace += `:${rootUrlPathPrefix}`;
       }
+    }
+
+    if (namespace) {
       this.LOGIN_TOKEN_KEY += namespace;
       this.LOGIN_TOKEN_EXPIRES_KEY += namespace;
       this.USER_ID_KEY += namespace;
@@ -635,14 +646,14 @@ export class AccountsClient extends AccountsCommon {
   _initUrlMatching() {
     // By default, allow the autologin process to happen.
     this._autoLoginEnabled = true;
-  
+
     // We only support one callback per URL.
     this._accountsCallbacks = {};
-  
+
     // Try to match the saved value of window.location.hash.
     this._attemptToMatchHash();
   };
-  
+
   // Separate out this functionality for testing
   _attemptToMatchHash() {
     attemptToMatchHash(this, this.savedHash, defaultSuccessHandler);
@@ -731,8 +742,8 @@ export class AccountsClient extends AccountsCommon {
 };
 
 /**
- * @summary True if a login method (such as `Meteor.loginWithPassword`, 
- * `Meteor.loginWithFacebook`, or `Accounts.createUser`) is currently in 
+ * @summary True if a login method (such as `Meteor.loginWithPassword`,
+ * `Meteor.loginWithFacebook`, or `Accounts.createUser`) is currently in
  * progress. A reactive data source.
  * @locus Client
  * @importFromPackage meteor
@@ -740,7 +751,7 @@ export class AccountsClient extends AccountsCommon {
 Meteor.loggingIn = () => Accounts.loggingIn();
 
 /**
- * @summary True if a logout method (such as `Meteor.logout`) is currently in 
+ * @summary True if a logout method (such as `Meteor.logout`) is currently in
  * progress. A reactive data source.
  * @locus Client
  * @importFromPackage meteor
@@ -766,7 +777,7 @@ Meteor.logoutOtherClients = callback => Accounts.logoutOtherClients(callback);
 /**
  * @summary Login with a Meteor access token.
  * @locus Client
- * @param {Object} [token] Local storage token for use with login across 
+ * @param {Object} [token] Local storage token for use with login across
  * multiple tabs in the same browser.
  * @param {Function} [callback] Optional callback. Called with no arguments on
  * success.
@@ -815,7 +826,7 @@ if (Package.blaze) {
    * @summary Calls [Meteor.loggingIn()](#meteor_loggingin) or [Meteor.loggingOut()](#meteor_loggingout).
    */
   Template.registerHelper(
-    'loggingInOrOut', 
+    'loggingInOrOut',
     () => Meteor.loggingIn() || Meteor.loggingOut()
   );
 }
@@ -872,6 +883,6 @@ const attemptToMatchHash = (accounts, hash, success) => {
 
 // Export for testing
 export const AccountsTest = {
-  attemptToMatchHash: (hash, success) => 
+  attemptToMatchHash: (hash, success) =>
     attemptToMatchHash(Accounts, hash, success),
 };
