@@ -8,11 +8,15 @@ import {AccountsCommon} from "./accounts_common.js";
  * @instancename accountsClient
  * @param {Object} options an object with fields:
  * @param {Object} options.connection Optional DDP connection to reuse.
+ * @param {String} options.localStorageNamespace Optional namespace for local storage keys.
  * @param {String} options.ddpUrl Optional URL for creating a new DDP connection.
  */
 export class AccountsClient extends AccountsCommon {
   constructor(options) {
     super(options);
+
+    if (options && options.localStorageNamespace)
+      this.localStorageNamespace = options.localStorageNamespace;
 
     this._loggingIn = new ReactiveVar(false);
     this._loggingOut = new ReactiveVar(false);
@@ -548,18 +552,25 @@ export class AccountsClient extends AccountsCommon {
     this.LOGIN_TOKEN_EXPIRES_KEY = "Meteor.loginTokenExpires";
     this.USER_ID_KEY = "Meteor.userId";
 
+    let namespace = this.localStorageNamespace ||
+      __meteor_runtime_config__.LOCAL_STORAGE_NAMESPACE;
+
     const rootUrlPathPrefix = __meteor_runtime_config__.ROOT_URL_PATH_PREFIX;
-    if (rootUrlPathPrefix || this.connection !== Meteor.connection) {
+    if (namespace === undefined &&
+      (rootUrlPathPrefix || this.connection !== Meteor.connection)) {
       // We want to keep using the same keys for existing apps that do not
       // set a custom ROOT_URL_PATH_PREFIX, so that most users will not have
       // to log in again after an app updates to a version of Meteor that
       // contains this code, but it's generally preferable to namespace the
       // keys so that connections from distinct apps to distinct DDP URLs
       // will be distinct in Meteor._localStorage.
-      let namespace = `:${this.connection._stream.rawUrl}`;
+      namespace = `:${this.connection._stream.rawUrl}`;
       if (rootUrlPathPrefix) {
         namespace += `:${rootUrlPathPrefix}`;
       }
+    }
+
+    if (namespace) {
       this.LOGIN_TOKEN_KEY += namespace;
       this.LOGIN_TOKEN_EXPIRES_KEY += namespace;
       this.USER_ID_KEY += namespace;
