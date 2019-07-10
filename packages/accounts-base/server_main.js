@@ -1,5 +1,10 @@
 import { AccountsServer } from "./accounts_server.js";
 
+if (process.env.LOCAL_STORAGE_NAMESPACE !== undefined) {
+  __meteor_runtime_config__.LOCAL_STORAGE_NAMESPACE =
+    process.env.LOCAL_STORAGE_NAMESPACE;
+}
+
 /**
  * @namespace Accounts
  * @summary The namespace for all server-side accounts-related methods.
