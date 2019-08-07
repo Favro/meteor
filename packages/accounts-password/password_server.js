@@ -314,11 +314,11 @@ Accounts.registerLoginHandler("password", async options => {
   if (!options.password)
     return undefined; // don't handle
 
-  check(options, {
+  check(options, Match.ObjectIncluding({
     user: Accounts._userQueryValidator,
     password: passwordValidator,
     code: Match.Optional(Match.NonEmptyString),
-  });
+  }));
 
 
   const user = await Accounts._findUserByQuery(options.user, {fields: {
