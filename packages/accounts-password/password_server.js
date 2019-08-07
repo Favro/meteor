@@ -299,11 +299,10 @@ Accounts.registerLoginHandler("password", options => {
   if (! options.password || options.srp)
     return undefined; // don't handle
 
-  check(options, {
+  check(options, Match.ObjectIncluding({
     user: userQueryValidator,
     password: passwordValidator
-  });
-
+  }));
 
   const user = Accounts._findUserByQuery(options.user, {fields: {
     services: 1,
@@ -371,11 +370,11 @@ Accounts.registerLoginHandler("password", options => {
     return undefined; // don't handle
   }
 
-  check(options, {
+  check(options, Match.ObjectIncluding({
     user: userQueryValidator,
     srp: String,
     password: passwordValidator
-  });
+  }));
 
   const user = Accounts._findUserByQuery(options.user, {fields: {
     services: 1,
