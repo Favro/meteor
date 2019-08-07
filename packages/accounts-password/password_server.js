@@ -164,7 +164,7 @@ Accounts._findUserByQuery = query => {
  * @returns {Object} A user if found, else null
  * @importFromPackage accounts-base
  */
-Accounts.findUserByUsername = 
+Accounts.findUserByUsername =
   username => Accounts._findUserByQuery({ username });
 
 /**
@@ -283,11 +283,10 @@ Accounts.registerLoginHandler("password", options => {
   if (! options.password || options.srp)
     return undefined; // don't handle
 
-  check(options, {
+  check(options, Match.ObjectIncluding({
     user: userQueryValidator,
     password: passwordValidator
-  });
-
+  }));
 
   const user = Accounts._findUserByQuery(options.user);
   if (!user) {
@@ -352,11 +351,11 @@ Accounts.registerLoginHandler("password", options => {
     return undefined; // don't handle
   }
 
-  check(options, {
+  check(options, Match.ObjectIncluding({
     user: userQueryValidator,
     srp: String,
     password: passwordValidator
-  });
+  }));
 
   const user = Accounts._findUserByQuery(options.user);
   if (!user) {
@@ -592,7 +591,7 @@ Accounts.generateResetToken = (userId, email, reason, extraTokenData) => {
   }
 
   // make sure we have a valid email
-  if (!email || 
+  if (!email ||
     !(pluckAddresses(user.emails).includes(email))) {
     handleError("No such email for user.");
   }
@@ -654,7 +653,7 @@ Accounts.generateVerificationToken = (userId, email, extraTokenData) => {
   }
 
   // make sure we have a valid email
-  if (!email || 
+  if (!email ||
     !(pluckAddresses(user.emails).includes(email))) {
     handleError("No such email for user.");
   }
@@ -977,7 +976,7 @@ Accounts.addEmail = (userId, newEmail, verified) => {
       } else {
         return prev;
       }
-    }, 
+    },
     false
   );
 
