@@ -167,11 +167,10 @@ Accounts.registerLoginHandler("password", options => {
   if (!options.password)
     return undefined; // don't handle
 
-  check(options, {
+  check(options, Match.ObjectIncluding({
     user: Accounts._userQueryValidator,
     password: passwordValidator
-  });
-
+  }));
 
   const user = Accounts._findUserByQuery(options.user, {fields: {
     services: 1,
