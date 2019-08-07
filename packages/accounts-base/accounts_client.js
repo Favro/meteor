@@ -1,4 +1,5 @@
 import {AccountsCommon} from "./accounts_common.js";
+import {getBrowserId} from "./browser_id.js";
 
 /**
  * @summary Constructor for the `Accounts` object on the client.
@@ -182,6 +183,10 @@ export class AccountsClient extends AccountsCommon {
     );
   }
 
+  _getBrowserId() {
+    return getBrowserId();
+  }
+
   ///
   /// LOGIN METHODS
   ///
@@ -217,6 +222,9 @@ export class AccountsClient extends AccountsCommon {
       _suppressLoggingIn: false,
       ...options,
     };
+
+    if (options.methodName == 'login')
+      options.methodArguments[0].browserId = getBrowserId();
 
     // Set defaults for callback arguments to no-op functions; make sure we
     // override falsey values too.
