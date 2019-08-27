@@ -543,6 +543,7 @@ Accounts.sendEnrollmentEmail = (userId, email, extraTokenData, extraParams) => {
 Meteor.methods({resetPassword: function (...args) {
   const token = args[0];
   const newPassword = args[1];
+  const extraOptions = args[2];
   return Accounts._loginMethod(
     this,
     "resetPassword",
@@ -551,6 +552,7 @@ Meteor.methods({resetPassword: function (...args) {
     () => {
       check(token, String);
       check(newPassword, passwordValidator);
+      check(extraOptions, Match.Maybe(Object));
 
       let user = Meteor.users.findOne(
         {"services.password.reset.token": token},
@@ -694,6 +696,7 @@ Accounts.sendVerificationEmail = (userId, email, extraTokenData, extraParams) =>
 // and log them in.
 Meteor.methods({verifyEmail: function (...args) {
   const token = args[0];
+  const extraOptions = args[1];
   return Accounts._loginMethod(
     this,
     "verifyEmail",
@@ -701,6 +704,7 @@ Meteor.methods({verifyEmail: function (...args) {
     "password",
     () => {
       check(token, String);
+      check(extraOptions, Match.Maybe(Object));
 
       const user = Meteor.users.findOne(
         {'services.email.verificationTokens.token': token},
@@ -893,6 +897,7 @@ const createUser = options => {
 // method for create user. Requests come from the client.
 Meteor.methods({createUser: function (...args) {
   const options = args[0];
+  const extraOptions = args[1];
   return Accounts._loginMethod(
     this,
     "createUser",
@@ -901,6 +906,8 @@ Meteor.methods({createUser: function (...args) {
     () => {
       // createUser() above does more checking.
       check(options, Object);
+      check(extraOptions, Match.Maybe(Object));
+
       if (Accounts._options.forbidClientAccountCreation)
         return {
           error: new Meteor.Error(403, "Signups forbidden")
