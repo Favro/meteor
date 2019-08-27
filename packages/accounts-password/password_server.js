@@ -734,6 +734,7 @@ Meteor.methods(
       async function (...args) {
         const token = args[0];
         const newPassword = args[1];
+        const extraOptions = args[2];
         return await Accounts._loginMethod(
           this,
           "resetPassword",
@@ -742,6 +743,7 @@ Meteor.methods(
           async () => {
             check(token, String);
             check(newPassword, passwordValidator);
+            check(extraOptions, Match.Maybe(Object));
             let user = await Meteor.users.findOneAsync(
               { "services.password.reset.token": token },
               {
@@ -917,6 +919,7 @@ Meteor.methods(
   {
     verifyEmail: async function (...args) {
       const token = args[0];
+      const extraOptions = args[1];
       return await Accounts._loginMethod(
         this,
         "verifyEmail",
@@ -924,6 +927,7 @@ Meteor.methods(
         "password",
         async () => {
           check(token, String);
+          check(extraOptions, Match.Maybe(Object));
 
           const user = await Meteor.users.findOneAsync(
             { 'services.email.verificationTokens.token': token },
@@ -1210,6 +1214,7 @@ Meteor.methods(
   {
     createUser: async function (...args) {
       const options = args[0];
+      const extraOptions = args[1];
       return await Accounts._loginMethod(
         this,
         "createUser",
@@ -1218,6 +1223,7 @@ Meteor.methods(
         async () => {
           // createUser() above does more checking.
           check(options, Object);
+          check(extraOptions, Match.Maybe(Object));
           if (Accounts._options.forbidClientAccountCreation)
             return {
               error: new Meteor.Error(403, "Signups forbidden")
