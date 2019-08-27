@@ -642,10 +642,11 @@ export class AccountsServer extends AccountsCommon {
     //   If successful, returns {token: reconnectToken, id: userId}
     //   If unsuccessful (for example, if the user closed the oauth login popup),
     //     throws an error describing the reason
-    methods.login = async function (options) {
+    methods.login = async function (options, extraOptions) {
       // Login handlers should really also check whatever field they look at in
       // options, but we don't enforce it.
       check(options, Object);
+      check(extraOptions, Match.Maybe(Object));
 
       const result = await accounts._runLoginHandlers(this, options);
       //console.log({result});
