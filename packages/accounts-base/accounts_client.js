@@ -218,8 +218,9 @@ export class AccountsClient extends AccountsCommon {
       ...options,
     };
 
-    if (options.methodName == 'login')
-      options.methodArguments[0].browserId = getBrowserId();
+    options.methodArguments.push({
+      browserId: getBrowserId(),
+    });
 
     // Set defaults for callback arguments to no-op functions; make sure we
     // override falsey values too.
