@@ -1197,10 +1197,7 @@ export class Connection {
     if (self._resetStores || !isEmpty(updates)) {
       // Synchronous store updates for client
       Object.values(self._stores).forEach(store => {
-        store.beginUpdate(
-          updates[store._name]?.length || 0,
-          self._resetStores
-        );
+        store.beginUpdate(0, self._resetStores);
       });
 
       self._resetStores = false;
