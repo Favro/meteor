@@ -1169,12 +1169,7 @@ export class Connection {
       // Begin a transactional update of each store.
 
       Object.entries(self._stores).forEach(([storeName, store]) => {
-        store.beginUpdate(
-          hasOwn.call(updates, storeName)
-            ? updates[storeName].length
-            : 0,
-          self._resetStores
-        );
+        store.beginUpdate(0, self._resetStores);
       });
 
       self._resetStores = false;
