@@ -66,9 +66,9 @@ export class Connection {
       retry: true,
       respondToPings: true,
       // When updates are coming within this ms interval, batch them together.
-      bufferedWritesInterval: 5,
+      bufferedWritesInterval: 15,
       // Flush buffers immediately if writes are happening continuously for more than this many ms.
-      bufferedWritesMaxAge: 500,
+      bufferedWritesMaxAge: 30,
 
       ...options
     };
