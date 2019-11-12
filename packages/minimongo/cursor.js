@@ -51,9 +51,20 @@ export default class Cursor {
    * @returns {Number}
    */
   count(applySkipLimit = true) {
-    if (this.reactive) {
+    if (this.reactive && Tracker.active) {
+      let numDocs = 0;
       // allow the observe to be unordered
-      this._depend({added: true, removed: true}, true);
+      this._depend({added: true, removed: true}, true, () => numDocs++);
+
+      if (applySkipLimit) {
+        if (this.skip)
+          numDocs = Math.max(0, numDocs - this.skip);
+
+        if (this.limit)
+          numDocs = Math.min(numDocs, this.limit);
+      }
+
+      return numDocs;
     }
 
     return this._getRawObjects({
@@ -81,26 +92,13 @@ export default class Cursor {
   }
 
   [Symbol.iterator]() {
-    if (this.reactive) {
-      this._depend({
-        addedBefore: true,
-        removed: true,
-        changed: true,
-        movedBefore: true});
-    }
-
     let index = 0;
-    const objects = this._getRawObjects({ordered: true});
+    const elements = this.fetch();
 
     return {
       next: () => {
-        if (index < objects.length) {
-          // This doubles as a clone operation.
-          let element = this._projectionFn(objects[index++]);
-
-          if (this._transform)
-            element = this._transform(element);
-
+        if (index < elements.length) {
+          let element = elements[index++];
           return {value: element};
         }
 
@@ -129,21 +127,30 @@ export default class Cursor {
    *                        `callback`.
    */
   forEach(callback, thisArg) {
-    if (this.reactive) {
+    if (this.reactive && Tracker.active) {
+      let i = 0;
+
       this._depend({
         addedBefore: true,
         removed: true,
         changed: true,
-        movedBefore: true});
+        movedBefore: true,
+      }, false, element => {
+        if (this._transform)
+          element = this._transform(element);
+
+        callback.call(thisArg, element, i++, this);
+      });
+
+      return;
     }
 
     this._getRawObjects({ordered: true}).forEach((element, i) => {
       // This doubles as a clone operation.
       element = this._projectionFn(element);
 
-      if (this._transform) {
+      if (this._transform)
         element = this._transform(element);
-      }
 
       callback.call(thisArg, element, i, this);
     });
@@ -306,15 +313,16 @@ export default class Cursor {
 
     if (!options._suppress_initial && !this.collection.paused) {
       query.results.forEach(doc => {
-        const fields = EJSON.clone(doc);
+        const fields = this._projectionFn(doc);
 
-        delete fields._id;
+        if (!options._keep_id)
+          delete fields._id;
 
-        if (ordered) {
-          query.addedBefore(doc._id, this._projectionFn(fields), null);
-        }
+        if (ordered && options.addedBefore)
+          options.addedBefore(doc._id, fields, null);
 
-        query.added(doc._id, this._projectionFn(fields));
+        if (options.added)
+          options.added(doc._id, fields);
       });
     }
 
@@ -338,10 +346,6 @@ export default class Cursor {
       });
     }
 
-    // run the observe callbacks resulting from the initial contents
-    // before we leave the observe.
-    this.collection._observeQueue.drain();
-
     return handle;
   }
 
@@ -353,25 +357,42 @@ export default class Cursor {
 
   // XXX Maybe we need a version of observe that just calls a callback if
   // anything changed.
-  _depend(changers, _allow_unordered) {
-    if (Tracker.active) {
-      const dependency = new Tracker.Dependency;
-      const notify = dependency.changed.bind(dependency);
+  _depend(changers, _allow_unordered, initialDocCallback) {
+    const dependency = new Tracker.Dependency;
+    const notify = dependency.changed.bind(dependency);
 
-      dependency.depend();
+    dependency.depend();
 
-      const options = {_allow_unordered, _suppress_initial: true};
+    const options = {
+      _allow_unordered,
+      _keep_id: true,
+    };
 
-      ['added', 'addedBefore', 'changed', 'movedBefore', 'removed']
-        .forEach(fn => {
-          if (changers[fn]) {
-            options[fn] = notify;
-          }
-        });
+    ['added', 'addedBefore', 'changed', 'movedBefore', 'removed']
+      .forEach(fn => {
+        if (changers[fn]) {
+          options[fn] = notify;
+        }
+      });
 
-      // observeChanges will stop() when this computation is invalidated
-      this.observeChanges(options);
+    if (initialDocCallback) {
+      const notifyInitial = (id, doc) => {
+        if (initialDocCallback)
+          initialDocCallback(doc);
+        else
+          notify();
+      };
+
+      if (options.addedBefore)
+        options.addedBefore = notifyInitial;
+      else
+        options.added = notifyInitial;
     }
+
+    // observeChanges will stop() when this computation is invalidated
+    this.observeChanges(options);
+
+    initialDocCallback = undefined;
   }
 
   _getCollectionName() {
