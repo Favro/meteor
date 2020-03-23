@@ -47,9 +47,10 @@ export const writeCallback = function (write, refresh, callback) {
 
 
 export const transformResult = function (driverResult) {
-  var meteorResult = { numberAffected: 0 };
+  var meteorResult = { numberAffected: 0, numberModified: 0 };
   if (driverResult) {
     var mongoResult = driverResult.result;
+    meteorResult.numberModified = mongoResult.nModified || mongoResult.modifiedCount;
     // On updates with upsert:true, the inserted values come as a list of
     // upserted values -- even with options.multi, when the upsert does insert,
     // it only inserts one element.

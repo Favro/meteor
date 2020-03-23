@@ -597,6 +597,7 @@ var simulateUpsertWithInsertedId = async function (collection, selector, mod, op
         if (result && (result.modifiedCount || result.upsertedCount)) {
           return {
             numberAffected: result.modifiedCount || result.upsertedCount,
+            numberModified: result.modifiedCount,
             insertedId: result.upsertedId || undefined,
           };
         } else {
@@ -610,6 +611,7 @@ var simulateUpsertWithInsertedId = async function (collection, selector, mod, op
     return collection.replaceOne(selector, replacementWithId, mongoOptsForInsert)
       .then(result => ({
         numberAffected: result.upsertedCount,
+        numberModified: result.modifiedCount,
         insertedId: result.upsertedId,
       })).catch(err => {
         if (MongoConnection._isCannotChangeIdError(err)) {
