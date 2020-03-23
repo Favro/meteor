@@ -629,9 +629,10 @@ MongoConnection.prototype._update = function (collection_name, selector, mod,
 };
 
 var transformResult = function (driverResult) {
-  var meteorResult = { numberAffected: 0 };
+  var meteorResult = { numberAffected: 0, numberModified: 0 };
   if (driverResult) {
     var mongoResult = driverResult.result;
+    meteorResult.numberModified = mongoResult.nModified;
 
     // On updates with upsert:true, the inserted values come as a list of
     // upserted values -- even with options.multi, when the upsert does insert,
@@ -715,7 +716,8 @@ var simulateUpsertWithInsertedId = function (collection, selector, mod,
                             callback(err);
                           } else if (result && result.result.n != 0) {
                             callback(null, {
-                              numberAffected: result.result.n
+                              numberAffected: result.result.n,
+                              numberModified: result.result.nModified,
                             });
                           } else {
                             doConditionalInsert();
@@ -739,6 +741,7 @@ var simulateUpsertWithInsertedId = function (collection, selector, mod,
                         } else {
                           callback(null, {
                             numberAffected: result.result.upserted.length,
+                            numberModified: result.result.nModified,
                             insertedId: insertedId,
                           });
                         }
