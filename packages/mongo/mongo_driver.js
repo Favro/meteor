@@ -633,9 +633,10 @@ MongoConnection.prototype._update = function (collection_name, selector, mod,
 };
 
 var transformResult = function (driverResult) {
-  var meteorResult = { numberAffected: 0 };
+  var meteorResult = { numberAffected: 0, numberModified: 0 };
   if (driverResult) {
     var mongoResult = driverResult.result;
+    meteorResult.numberModified = mongoResult.nModified || mongoResult.modifiedCount;
     // On updates with upsert:true, the inserted values come as a list of
     // upserted values -- even with options.multi, when the upsert does insert,
     // it only inserts one element.
@@ -728,6 +729,7 @@ var simulateUpsertWithInsertedId = function (collection, selector, mod,
           } else if (result && (result.modifiedCount || result.upsertedCount)) {
             callback(null, {
               numberAffected: result.modifiedCount || result.upsertedCount,
+              numberModified: result.modifiedCount,
               insertedId: result.upsertedId || undefined,
             });
           } else {
@@ -756,6 +758,7 @@ var simulateUpsertWithInsertedId = function (collection, selector, mod,
         } else {
           callback(null, {
             numberAffected: result.upsertedCount,
+            numberModified: result.modifiedCount,
             insertedId: result.upsertedId,
           });
         }
