@@ -42,7 +42,7 @@ Package.onUse(function(api) {
     // _.isUseful(true)
     'underscore',
     // $(".usefulToo")
-    'jquery',
+    'jquery@1.11.9 || 3.0.0',
     // Life isn't always predictable.
     'random',
     // People like being able to clone objects.
