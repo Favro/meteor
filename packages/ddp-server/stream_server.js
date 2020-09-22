@@ -55,7 +55,8 @@ StreamServer = function () {
     // Set the USE_JSESSIONID environment variable to enable setting the
     // JSESSIONID cookie. This is useful for setting up proxies with
     // session affinity.
-    jsessionid: !!process.env.USE_JSESSIONID
+    jsessionid: !!process.env.USE_JSESSIONID,
+    disable_cors: !process.env.METEOR_ENABLE_CORS,
   };
 
   // If you know your server environment (eg, proxies) will prevent websockets
