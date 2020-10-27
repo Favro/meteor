@@ -1017,6 +1017,12 @@ MongoConnection.prototype._createSynchronousCursor = function(
     }
   }
 
+  if (cursorOptions.noCursorTimeout)
+    mongoOptions.noCursorTimeout = true;
+
+  if (cursorOptions.session)
+    mongoOptions.session = cursorOptions.session;
+
   var dbCursor = collection.find(
     replaceTypes(cursorDescription.selector, replaceMeteorAtomWithMongo),
     mongoOptions);
