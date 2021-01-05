@@ -46,13 +46,20 @@ if [ ! -x "$METEOR_WAREHOUSE_DIR/meteor" ]; then
 
   if [ "$UNAME" = "Darwin" ] ; then
       ### OSX ###
-      if [ "i386" != "$(uname -p)" -o "1" != "$(sysctl -n hw.cpu64bit_capable 2>/dev/null || echo 0)" ] ; then
-          # Can't just test uname -m = x86_64, because Snow Leopard can
-          # return other values.
-          echo "Only 64-bit Intel processors are supported at this time."
-          exit 1
+      ARCH_LOCAL=$(uname -m)
+      if [ "$ARCH_LOCAL" == "x86_64" ]; then
+        PLATFORM="os.osx.x86_64"
+      elif if [ "$ARCH_LOCAL" == "arm64" ]; then
+        PLATFORM="os.osx.arm64"
+      else
+        if [ "i386" != "$(uname -p)" -o "1" != "$(sysctl -n hw.cpu64bit_capable 2>/dev/null || echo 0)" ] ; then
+            # Can't just test uname -m = x86_64, because Snow Leopard can
+            # return other values.
+            echo "Only 64-bit Intel or ARM processors are supported at this time."
+            exit 1
+        fi
+        PLATFORM="os.osx.x86_64"
       fi
-      PLATFORM="os.osx.x86_64"
   elif [ "$UNAME" = "Linux" ] ; then
       ### Linux ###
       LINUX_ARCH=$(uname -m)
