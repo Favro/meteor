@@ -34,9 +34,9 @@ elif [ "$UNAME" == "Darwin" ] ; then
         ARCH="x86_64"
     fi
 
-    if [ "$ARCH" != "x86_64" ] ; then
+    if [ "$ARCH" != "x86_64" && "$ARCH" != "arm64" ] ; then
         echo "Unsupported architecture: $ARCH"
-        echo "Meteor only supports x86_64 for now."
+        echo "Only 64-bit Intel or ARM processors are supported at this time."
         exit 1
     fi
 
