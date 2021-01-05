@@ -129,6 +129,7 @@ const utils = require('./utils');
 // Valid architectures that Meteor officially supports.
 export const VALID_ARCHITECTURES: Record<string, boolean> = {
   "os.osx.x86_64": true,
+  "os.osx.arm64": true,
   "os.linux.x86_64": true,
   "os.windows.x86_64": true,
 };
@@ -157,11 +158,18 @@ export function host() {
     if (platform === "darwin") {
       // Can't just test uname -m = x86_64, because Snow Leopard can
       // return other values.
-      if (run('uname', '-p') !== "i386" ||
-          run('sysctl', '-n', 'hw.cpu64bit_capable') !== "1") {
-        throw new Error("Only 64-bit Intel processors are supported on OS X");
+      const architecture = run('uname', '-m');
+
+      if (architecture == "arm64")
+        _host  = "os.osx.arm64";
+      else
+      {
+        if (run('uname', '-p') !== "i386" ||
+            run('sysctl', '-n', 'hw.cpu64bit_capable') !== "1") {
+          throw new Error("Only 64-bit Intel or ARM processors are supported on OS X" );
+        }
+        _host  = "os.osx.x86_64";
       }
-      _host  = "os.osx.x86_64";
     } else if (platform === "linux") {
       const machine = run('uname', '-m');
       if (["x86_64", "amd64", "ia64"].includes(machine)) {
