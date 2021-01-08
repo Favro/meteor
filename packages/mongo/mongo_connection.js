@@ -136,6 +136,9 @@ MongoConnection.prototype.createCappedCollectionAsync = async function (
   if (! self.db)
     throw Error("createCappedCollectionAsync called before Connection created?");
 
+  const collectionExists = await self.db.listCollections({ name: collectionName }).hasNext();
+  if (collectionExists)
+    return;
 
   await self.db.createCollection(collectionName,
     { capped: true, size: byteSize, max: maxDocuments });
