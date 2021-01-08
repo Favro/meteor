@@ -293,6 +293,10 @@ MongoConnection.prototype._createCappedCollection = function (
   if (! self.db)
     throw Error("_createCappedCollection called before Connection created?");
 
+  const collectionExists = self.db.listCollections({ name: collectionName }).hasNext().await();
+  if (collectionExists)
+    return;
+
   var future = new Future();
   self.db.createCollection(
     collectionName,
