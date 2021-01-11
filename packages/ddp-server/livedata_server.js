@@ -1385,6 +1385,7 @@ Server = function (options) {
 
   self.publish_handlers = {};
   self.universal_publish_handlers = [];
+  self.disable_default_user_publication = false;
 
   self.method_handlers = {};
 
