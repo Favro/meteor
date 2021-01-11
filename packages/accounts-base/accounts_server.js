@@ -713,6 +713,9 @@ export class AccountsServer extends AccountsCommon {
     // Use Meteor.startup to give other packages a chance to call
     // setDefaultPublishFields.
     Meteor.startup(() => {
+      if (this._server.disable_default_user_publication)
+        return;
+
       // Publish the current user's record to the client.
       this._server.publish(null, function () {
         if (this.userId) {
