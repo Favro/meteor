@@ -764,6 +764,9 @@ export class AccountsServer extends AccountsCommon {
     // Use Meteor.startup to give other packages a chance to call
     // setDefaultPublishFields.
     Meteor.startup(() => {
+      if (this._server.disable_default_user_publication)
+        return;
+
       // Merge custom fields selector and default publish fields so that the client
       // gets all the necessary fields to run properly
       const customFields = this._addDefaultFieldSelector().fields || {};
