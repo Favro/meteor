@@ -1,5 +1,8 @@
 // connect middleware
-OAuth._requestHandlers['2'] = (service, query, res) => {
+OAuth._requestHandlers['2'] = (service, query, res, req) => {
+  if (OAuth.resultHandlerOverride(service, query, res, req))
+    return;
+
   let credentialSecret;
 
   // check if user authorized access
