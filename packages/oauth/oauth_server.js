@@ -62,6 +62,9 @@ OAuth._generateState = (loginStyle, credentialToken, redirectUrl) => {
 };
 
 OAuth._stateFromQuery = query => {
+  if (!query.state)
+    return {};
+
   let string;
   try {
     string = Buffer.from(query.state, 'base64').toString('binary');
@@ -120,6 +123,10 @@ OAuth._isCordovaFromQuery = query => {
   }
 };
 
+OAuth.resultHandlerOverride = () => {
+  return false;
+};
+
 // Checks if the `redirectUrl` matches the app host.
 // We export this function so that developers can override this
 // behavior to allow apps from external domains to login using the
@@ -167,7 +174,7 @@ const middleware = (req, res, next) => {
       requestData = req.body;
     }
 
-    handler(service, requestData, res);
+    handler(service, requestData, res, req);
   } catch (err) {
     // if we got thrown an error, save it off, it will get passed to
     // the appropriate login call (if any) and reported there.
