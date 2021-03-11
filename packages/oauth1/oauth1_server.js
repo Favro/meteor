@@ -6,7 +6,7 @@ OAuth._queryParamsWithAuthTokenUrl = (authUrl, oauthBinding, params = {}, whitel
 
   Object.assign(
     redirectUrlObj.query,
-    whitelistedQueryParams.reduce((prev, param) => 
+    whitelistedQueryParams.reduce((prev, param) =>
       params.query[param] ? { ...prev, param: params.query[param] } : prev,
       {}
     ),
@@ -25,7 +25,10 @@ OAuth._queryParamsWithAuthTokenUrl = (authUrl, oauthBinding, params = {}, whitel
 };
 
 // connect middleware
-OAuth._requestHandlers['1'] = (service, query, res) => {
+OAuth._requestHandlers['1'] = (service, query, res, req) => {
+  if (OAuth.resultHandlerOverride(service, query, res, req))
+    return;
+
   const config = ServiceConfiguration.configurations.findOne({service: service.serviceName});
   if (! config) {
     throw new ServiceConfiguration.ConfigError(service.serviceName);
