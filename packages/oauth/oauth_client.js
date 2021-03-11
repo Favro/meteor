@@ -38,11 +38,14 @@ OAuth._loginStyle = (service, config, options) => {
   return loginStyle;
 };
 
+OAuth.extraStateParams = {};
+
 OAuth._stateParam = (loginStyle, credentialToken, redirectUrl) => {
   const state = {
     loginStyle,
     credentialToken,
-    isCordova: Meteor.isCordova
+    isCordova: Meteor.isCordova,
+    ...OAuth.extraStateParams,
   };
 
   if (loginStyle === 'redirect' ||
