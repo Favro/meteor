@@ -92,6 +92,10 @@ OAuth._loginStyleFromQuery = query => {
   } catch (err) {
     style = "popup";
   }
+
+  if (!style)
+    style = "popup";
+
   if (style !== "popup" && style !== "redirect") {
     throw new Error(`Unrecognized login style: ${style}`);
   }
