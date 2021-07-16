@@ -371,7 +371,7 @@ var AppRunner = function (options) {
   self.onRunEnd = options.onRunEnd;
   self.noRestartBanner = options.noRestartBanner;
   self.recordPackageUsage =
-    options.recordPackageUsage === undefined ? true : options.recordPackageUsage;
+    options.recordPackageUsage === undefined ? false : options.recordPackageUsage;
   self.omitPackageMapDeltaDisplayOnFirstRun =
     options.omitPackageMapDeltaDisplayOnFirstRun;
 
