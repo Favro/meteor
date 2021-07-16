@@ -480,7 +480,7 @@ async function pollForDeploy(pollingState, versionId, site, deployWithTokenProps
 //   for deploy status
 export async function bundleAndDeploy(options) {
   if (options.recordPackageUsage === undefined) {
-    options.recordPackageUsage = true;
+    options.recordPackageUsage = false;
   }
 
   // we don't need site for build-only
