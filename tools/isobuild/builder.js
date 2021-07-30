@@ -625,7 +625,7 @@ Previous builder: ${previousBuilder.outputPath}, this builder: ${outputPath}`
       }
     }
 
-    ignore = ignore || [];
+    ignore = ignore || [/\.git\//];
     let specificPaths = null;
     if (specificFiles) {
       specificPaths = {};
