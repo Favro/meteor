@@ -1027,6 +1027,9 @@ MongoConnection.prototype._createSynchronousCursor = function(
   if (cursorOptions.session)
     mongoOptions.session = cursorOptions.session;
 
+  if (cursorOptions.comment)
+    mongoOptions.comment = cursorOptions.comment;
+
   var dbCursor = collection.find(
     replaceTypes(cursorDescription.selector, replaceMeteorAtomWithMongo),
     mongoOptions);
