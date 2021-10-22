@@ -26,7 +26,8 @@ var packageJson = {
   devDependencies: {
     split2: "3.2.2",
     multipipe: "1.0.2",
-    chalk: "0.5.1"
+    chalk: "0.5.1",
+    "emoji-regex": "^10.0.0"
   }
 };
 
