@@ -26,7 +26,8 @@ var packageJson = {
     "@types/underscore": "1.11.2",
     split2: "3.2.2",
     multipipe: "2.0.1",
-    chalk: "4.1.2"
+    chalk: "4.1.2",
+    "emoji-regex": "^10.0.0"
   }
 };
 
