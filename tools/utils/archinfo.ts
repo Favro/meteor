@@ -132,6 +132,7 @@ export const VALID_ARCHITECTURES: Record<string, boolean> = {
   "os.osx.x86_64": true,
   "os.osx.arm64": true,
   "os.linux.x86_64": true,
+  "os.linux.aarch64": true,
   "os.windows.x86_64": true,
   "os.linux.aarch64": true,
 };
@@ -173,7 +174,9 @@ export function host() {
       }
     } else if (platform === "linux") {
       const machine = run('uname', '-m');
-      if (["x86_64", "amd64", "ia64"].includes(machine)) {
+      if (["aarch64"].includes(machine)) {
+        _host = "os.linux.aarch64";
+      } else if (["x86_64", "amd64", "ia64"].includes(machine)) {
         _host = "os.linux.x86_64";
       } else if(machine === "aarch64") {
         _host = "os.linux.aarch64";
