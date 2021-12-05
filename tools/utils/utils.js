@@ -697,6 +697,7 @@ export function architecture() {
     Linux: {
       ia32: 'i686',
       x64: 'x86_64',
+      aarch64: 'aarch64',
     },
     Windows_NT: {
       ia32: process.env.hasOwnProperty('PROCESSOR_ARCHITEW6432')
