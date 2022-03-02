@@ -1939,6 +1939,8 @@ function doTestCommand(options) {
       // may or may not exist yet
       const appDirPath = files.pathJoin(options.appDir, ...parts);
       const testDirPath = files.pathJoin(testRunnerAppDir, ...parts);
+      if (appDirPath == testDirPath)
+         return;
 
       files.mkdir_p(appDirPath);
       files.mkdir_p(files.pathDirname(testDirPath));
