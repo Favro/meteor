@@ -57,7 +57,7 @@ const openCenteredPopup = function(url, width, height) {
                   `,left=${left},top=${top},scrollbars=yes`);
 
 
-  const newwindow = window.open(url, 'Login', features);
+  const newwindow = window.open(url, undefined, features);
 
   if (!newwindow || newwindow.closed) {
     // blocked by a popup blocker maybe?
