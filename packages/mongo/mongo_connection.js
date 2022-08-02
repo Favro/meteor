@@ -398,8 +398,9 @@ MongoConnection.prototype.updateAsync = async function (collection_name, selecto
       Object.assign(mongoMod.$setOnInsert, replaceTypes({_id: options.insertedId}, replaceMeteorAtomWithMongo));
     }
 
-    const strings = Object.keys(mongoMod).filter((key) => !key.startsWith("$"));
-    let updateMethod = strings.length > 0 ? 'replaceOne' : 'updateMany';
+    const mongoModKeys = Object.keys(mongoMod);
+    const strings = mongoModKeys.filter((key) => !key.startsWith("$"));
+    let updateMethod = (strings.length > 0 || (options.upsert && mongoModKeys.length == 0)) ? 'replaceOne' : 'updateMany';
     updateMethod =
       updateMethod === 'updateMany' && !mongoOpts.multi
         ? 'updateOne'
