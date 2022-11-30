@@ -8,6 +8,7 @@ function setCookie(key, value) {
   let cookie = key + "=" + value;
   cookie += "; max-age=63072000";
   cookie += "; path=/";
+  cookie += "; samesite=lax";
 
   let url = Meteor.absoluteUrl();
   if (/^https:/.test(url))
