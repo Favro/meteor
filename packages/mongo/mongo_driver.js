@@ -1098,7 +1098,7 @@ var SynchronousCursor = function (dbCursor, cursorDescription, options, collecti
     collection.countDocuments.bind(
       collection,
       replaceTypes(cursorDescription.selector, replaceMeteorAtomWithMongo),
-      replaceTypes(cursorDescription.options, replaceMeteorAtomWithMongo),
+      replaceTypes(_.omit(cursorDescription.options, 'session'), replaceMeteorAtomWithMongo),
     )
   );
   self._visitedIds = new LocalCollection._IdMap;
