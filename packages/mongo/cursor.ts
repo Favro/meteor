@@ -37,9 +37,10 @@ export class Cursor<T, U = T> {
 
   async countAsync(): Promise<number> {
     const collection = this._mongo.rawCollection(this._cursorDescription.collectionName);
+    const { session, ...optionsWithoutSession } = this._cursorDescription.options;
     return await collection.countDocuments(
       replaceTypes(this._cursorDescription.selector, replaceMeteorAtomWithMongo),
-      replaceTypes(this._cursorDescription.options, replaceMeteorAtomWithMongo),
+      replaceTypes(optionsWithoutSession, replaceMeteorAtomWithMongo),
     );
   }
 
