@@ -351,12 +351,49 @@ var loadServerBundles = Profile("Load server bundles", function () {
         return fut.wait();
     };
 
+	  var getAssetAsync = function (assetPath, encoding) {
+		  let promise, resolve, reject;
+		  promise = new Promise((r, rj) => {
+			  resolve = r;
+			  reject = rj;
+		  });
+
+		  // Convert a DOS-style path to Unix-style in case the application code was
+		  // written on Windows.
+		  assetPath = files.convertToStandardPath(assetPath);
+
+		  // Unicode normalize the asset path to prevent string mismatches when
+		  // using this string elsewhere.
+		  assetPath = files.unicodeNormalizePath(assetPath);
+
+		  if (! fileInfo.assets || ! hasOwn.call(fileInfo.assets, assetPath)) {
+			  throw new Error("Unknown asset: " + assetPath);
+		  } else {
+			  var filePath = path.join(serverDir, fileInfo.assets[assetPath]);
+			  fs.readFile(files.convertToOSPath(filePath), encoding, (error, value) => {
+				  if (error) {
+					  return reject(error);
+				  }
+
+				  return resolve(value);
+			  });
+		  }
+
+		  return promise;
+	  };
+
     var Assets = {
       getText: function (assetPath, callback) {
         return getAsset(assetPath, "utf8", callback);
       },
+	  getTextAsync: function (assetPath) {
+	  	return getAssetAsync(assetPath, "utf8");
+	  },
       getBinary: function (assetPath, callback) {
         return getAsset(assetPath, undefined, callback);
+      },
+	  getBinaryAsync: function (assetPath) {
+	  	return getAssetAsync(assetPath, undefined);
       },
       /**
        * @summary Get the absolute path to the static server asset. Note that assets are read-only.

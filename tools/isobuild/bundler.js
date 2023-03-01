@@ -2073,6 +2073,38 @@ class JsImage {
       }
     };
 
+	var getAssetAsync = function (assets, assetPath, encoding, callback) {
+	  assetPath = files.convertToStandardPath(assetPath);
+	  var promise;
+	  if (! callback) {
+		  promise = new Promise(function (resolve, reject) {
+			  callback = function (err, res) {
+				  err ? reject(err) : resolve(res);
+			  };
+		  });
+	  }
+
+	  var _callback = function (err, result) {
+		  if (result && ! encoding) {
+			  // Sadly, this copies in Node 0.10.
+			  result = new Uint8Array(result);
+		  }
+		  callback(err, result);
+	  };
+
+	  if (!assets || !_.has(assets, assetPath)) {
+		  _callback(new Error("Unknown asset: " + assetPath));
+	  } else {
+		  var buffer = assets[assetPath];
+		  var result = encoding ? buffer.toString(encoding) : buffer;
+		  _callback(null, result);
+	  }
+
+	  if (promise) {
+		  return promise;
+	  }
+	};
+
     const nodeModulesDirsByPackageName = new Map;
 
     _.each(self.jsToLoad, item => {
@@ -2229,6 +2261,10 @@ class JsImage {
             return getAsset(item.assets, assetPath, "utf8", callback);
           },
 
+		  getTextAsync: function (assetPath) {
+			return getAssetAsync(item.assets, assetPath, "utf8");
+		  },
+
           /**
            * @summary Retrieve the contents of the static server asset as an [EJSON Binary](#ejson_new_binary).
            * @locus Server
@@ -2238,7 +2274,11 @@ class JsImage {
            */
           getBinary: function (assetPath, callback) {
             return getAsset(item.assets, assetPath, undefined, callback);
-          }
+          },
+
+		  getBinaryAsync: function (assetPath) {
+			return getAssetAsync(item.assets, assetPath, undefined);
+		  }
         }
       }, bindings || {});
 
