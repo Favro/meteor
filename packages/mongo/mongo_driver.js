@@ -823,6 +823,19 @@ MongoConnection.prototype.findOne = function (collection_name, selector,
   return self.find(collection_name, selector, options).fetch()[0];
 };
 
+MongoConnection.prototype.findOneAsync = async function (collection_name, selector,
+											  options) {
+	var self = this;
+	if (arguments.length === 1)
+		selector = {};
+
+	options = options || {};
+	options.limit = 1;
+
+	const results = await self.find(collection_name, selector, options).fetchAsync();
+	return results[0];
+};
+
 // We'll actually design an index API later. For now, we just pass through to
 // Mongo's, but make it synchronous.
 MongoConnection.prototype.createIndex = function (collectionName, index,
