@@ -270,7 +270,7 @@ export class AccountsCommon {
    *                        as user details, connection information, etc.
    */
   onLogin(func) {
-    let ret = this._onLoginHook.register(func);
+    let ret = this._onLoginHook.register(Meteor.wrapFn(func));
     // call the just registered callback if already logged in
     this._startupCallback(ret.callback);
     return ret;
@@ -282,7 +282,7 @@ export class AccountsCommon {
    * @param {Function} func The callback to be called after the login has failed.
    */
   onLoginFailure(func) {
-    return this._onLoginFailureHook.register(func);
+    return this._onLoginFailureHook.register(Meteor.wrapFn(func));
   }
 
   /**
@@ -291,7 +291,7 @@ export class AccountsCommon {
    * @param {Function} func The callback to be called when logout is successful.
    */
   onLogout(func) {
-    return this._onLogoutHook.register(func);
+    return this._onLogoutHook.register(Meteor.wrapFn(func));
   }
 
   _initConnection(options) {

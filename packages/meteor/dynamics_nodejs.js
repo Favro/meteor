@@ -75,7 +75,7 @@ EVp.withValue = function (value, func) {
   var saved = currentValues[this.slot];
   try {
     currentValues[this.slot] = value;
-    return func();
+    return Meteor.wrapFn(func)();
   } finally {
     currentValues[this.slot] = saved;
   }
@@ -179,4 +179,19 @@ Meteor.bindEnvironment = function (func, onException, _this) {
       return runWithEnvironment();
     Fiber(runWithEnvironment).run();
   };
+};
+
+Meteor.wrapFn = (fn) => {
+	if (!fn || typeof fn !== 'function') {
+		throw new Meteor.Error("Expected to receive function to wrap");
+	};
+
+	return function(...args) {
+		const ret = fn.apply(this, args);
+		if (ret && typeof ret.then === 'function') {
+			return Promise.await(ret);
+		}
+
+		return ret;
+	}
 };

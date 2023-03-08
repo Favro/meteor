@@ -137,7 +137,7 @@ export class AccountsServer extends AccountsCommon {
    */
   validateLoginAttempt(func) {
     // Exceptions inside the hook callback are passed up to us.
-    return this._validateLoginHook.register(func);
+    return this._validateLoginHook.register(Meteor.wrapFn(func));
   }
 
   /**
@@ -190,7 +190,7 @@ export class AccountsServer extends AccountsCommon {
       throw new Error("Can only call onCreateUser once");
     }
 
-    this._onCreateUserHook = func;
+    this._onCreateUserHook = Meteor.wrapFn(func);
   }
 
   /**
@@ -564,7 +564,7 @@ export class AccountsServer extends AccountsCommon {
 
     this._loginHandlers.push({
       name: name,
-      handler: handler
+      handler: Meteor.wrapFn(handler)
     });
   };
 
