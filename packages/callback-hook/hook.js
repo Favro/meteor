@@ -49,6 +49,11 @@ export class Hook {
       this.bindEnvironment = false;
     }
 
+	this.wrapAsync = true;
+	if (options.wrapAsync === false) {
+		this.wrapAsync = false;
+	}
+
     if (options.exceptionHandler) {
       this.exceptionHandler = options.exceptionHandler;
     } else if (options.debugPrintExceptions) {
@@ -72,6 +77,10 @@ export class Hook {
     } else {
       callback = dontBindEnvironment(callback, exceptionHandler);
     }
+
+	if (this.wrapAsync) {
+		callback = Meteor.wrapFn(callback);
+	}
 
     const id = this.nextCallbackId++;
     this.callbacks[id] = callback;
