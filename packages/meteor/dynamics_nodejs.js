@@ -180,18 +180,3 @@ Meteor.bindEnvironment = function (func, onException, _this) {
     Fiber(runWithEnvironment).run();
   };
 };
-
-Meteor.wrapFn = (fn) => {
-	if (!fn || typeof fn !== 'function') {
-		throw new Meteor.Error("Expected to receive function to wrap");
-	};
-
-	return function(...args) {
-		const ret = fn.apply(this, args);
-		if (ret && typeof ret.then === 'function') {
-			return Promise.await(ret);
-		}
-
-		return ret;
-	}
-};

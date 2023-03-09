@@ -86,12 +86,3 @@ Meteor.bindEnvironment = function (func, onException, _this) {
 Meteor._nodeCodeMustBeInFiber = function () {
   // no-op on browser
 };
-
-// On client just return the fn;
-Meteor.wrapFn = (fn) => {
-	if (!fn || typeof fn !== 'function') {
-		throw new Meteor.Error("Expected to receive function to wrap");
-	};
-
-	return fn;
-};
