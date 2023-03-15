@@ -453,6 +453,7 @@ Meteor.methods(
         }
       );
 
+      Accounts._userLoginTokensChanged(this.userId);
       return { passwordChanged: true };
     }
   });
@@ -490,7 +491,9 @@ Accounts.setPasswordAsync =
     }
 
     await Meteor.users.updateAsync({ _id: user._id }, updator);
+    Accounts._userLoginTokensChanged(user._id);
   };
+
 
 ///
 /// RESETTING VIA EMAIL
