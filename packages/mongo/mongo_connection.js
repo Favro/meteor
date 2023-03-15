@@ -993,6 +993,9 @@ MongoConnection.prototype._observeChanges = async function (
     cursorDescription, ordered, callbacks, nonMutatingCallbacks) {
     const collectionName = cursorDescription.collectionName;
 
+    if (Package["disable-default-publications"])
+      console.warn("Avoid using observeChanges() on the server:", cursorDescription, new Error());
+
     if (cursorDescription.options.tailable) {
       return this._observeChangesTailable(cursorDescription, ordered, callbacks);
     }
