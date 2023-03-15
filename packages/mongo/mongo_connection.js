@@ -821,6 +821,9 @@ Object.assign(MongoConnection.prototype, {
     var self = this;
     const collectionName = cursorDescription.collectionName;
 
+    if (Package["disable-default-publications"])
+      console.warn("Avoid using observeChanges() on the server:", cursorDescription, new Error());
+
     if (cursorDescription.options.tailable) {
       return self._observeChangesTailable(cursorDescription, ordered, callbacks);
     }
