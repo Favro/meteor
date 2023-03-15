@@ -305,6 +305,7 @@ Meteor.methods({changePassword: async function (oldPassword, newPassword) {
     }
   );
 
+  Accounts._userLoginTokensChanged(this.userId);
   return {passwordChanged: true};
 }});
 
@@ -343,6 +344,7 @@ Accounts.setPasswordAsync = async (userId, newPlaintextPassword, options) => {
   }
 
   Meteor.users.update({_id: user._id}, update);
+  Accounts._userLoginTokensChanged(user._id);
 };
 
 /**
