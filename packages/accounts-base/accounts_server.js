@@ -30,6 +30,9 @@ export class AccountsServer extends AccountsCommon {
 
     this._initAccountDataHooks();
 
+    this._setLoginTokenHook = new Hook({ bindEnvironment: false });
+    this._userLoginTokensChangedHook = new Hook({ bindEnvironment: false });
+
     // If autopublish is on, publish these user fields. Login service
     // packages (eg accounts-google) add to these by calling
     // addAutopublishFields.  Notably, this isn't implemented with multiple
@@ -138,6 +141,20 @@ export class AccountsServer extends AccountsCommon {
     this._CurrentEndpointInvocation = _CurrentEndpointInvocation;
   }
 
+  onSetLoginToken(func) {
+    return this._setLoginTokenHook.register(func);
+  }
+
+  onUserLoginTokensChange(func) {
+    return this._userLoginTokensChangedHook.register(func);
+  }
+
+  _userLoginTokensChanged(userId) {
+    this._userLoginTokensChangedHook.forEach(callback => {
+      callback(userId);
+      return true;
+    });
+  }
 
   ///
   /// CURRENT USER
@@ -694,6 +711,8 @@ export class AccountsServer extends AccountsCommon {
         }
       }
     });
+
+    this._userLoginTokensChanged(userId);
   };
 
   _initServerMethods() {
@@ -787,6 +806,7 @@ export class AccountsServer extends AccountsCommon {
           "services.resume.loginTokens": { hashedToken: { $ne: currentToken } }
         }
       });
+      accounts._userLoginTokensChanged(this.userId);
     };
 
     // Allow a one-time configuration for a login service. Modifications
@@ -982,6 +1002,7 @@ export class AccountsServer extends AccountsCommon {
         "services.resume.loginTokens": hashedToken
       }
     });
+    this._userLoginTokensChanged(userId);
   };
 
   // Exported for tests.
@@ -1005,6 +1026,7 @@ export class AccountsServer extends AccountsCommon {
         'services.resume.loginTokens': [],
       },
     });
+    this._userLoginTokensChanged(userId);
   };
 
   // test hook
@@ -1107,6 +1129,11 @@ export class AccountsServer extends AccountsCommon {
         }
       });
     }
+
+    this._setLoginTokenHook.forEach(callback => {
+      callback(userId, connection, newToken);
+      return true;
+    });
   };
 
   // (Also used by Meteor Accounts server and tests).
@@ -1202,12 +1229,18 @@ export class AccountsServer extends AccountsCommon {
 
     // Backwards compatible with older versions of meteor that stored login token
     // timestamps as numbers.
-    await this.users.updateAsync({ ...userFilter,
+    const query = { ...userFilter,
       $or: [
         { "services.resume.loginTokens.when": { $lt: oldestValidDate } },
         { "services.resume.loginTokens.when": { $lt: +oldestValidDate } }
       ]
-    }, {
+    };
+
+    const userIds = (await this.users.find(query, {
+      fields: { _id: 1 },
+    }).fetchAsync()).map(user => user._id);
+
+    await this.users.updateAsync(query, {
       $pull: {
         "services.resume.loginTokens": {
           $or: [
@@ -1219,6 +1252,9 @@ export class AccountsServer extends AccountsCommon {
     }, { multi: true });
     // The observe on Meteor.users will take care of closing connections for
     // expired tokens.
+
+    for (let userId of userIds)
+      this._userLoginTokensChanged(userId);
   };
 
   // @override from accounts_common.js
@@ -1326,6 +1362,8 @@ export class AccountsServer extends AccountsCommon {
           "services.resume.loginTokens": tokensToDelete
         }
       });
+
+      this._userLoginTokensChanged(userId);
     }
   };
 
@@ -1735,6 +1773,8 @@ const defaultResumeLoginHandler = async (accounts, options) => {
         "services.resume.loginTokens": { "token": options.resume }
       }
     });
+
+    accounts._userLoginTokensChanged(user._id);
   }
 
   return {
