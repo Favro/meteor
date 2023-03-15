@@ -756,6 +756,9 @@ export class AccountsServer extends AccountsCommon {
   };
 
   _initServerPublications() {
+    if (Package['disable-default-publications'])
+      return;
+
     // Bring into lexical scope for publish callbacks that need `this`
     const { users, _autopublishFields, _defaultPublishFields } = this;
 
@@ -771,9 +774,6 @@ export class AccountsServer extends AccountsCommon {
     // Use Meteor.startup to give other packages a chance to call
     // setDefaultPublishFields.
     Meteor.startup(() => {
-      if (this._server.disable_default_user_publication)
-        return;
-
       // Merge custom fields selector and default publish fields so that the client
       // gets all the necessary fields to run properly
       const customFields = this._addDefaultFieldSelector().fields || {};
@@ -957,7 +957,7 @@ export class AccountsServer extends AccountsCommon {
     this._removeTokenFromConnection(connection.id);
     this._setAccountData(connection.id, 'loginToken', newToken);
 
-    if (newToken) {
+    if (newToken && !Package['disable-default-publications']) {
       // Set up an observe for this token. If the token goes away, we need
       // to close the connection.  We defer the observe because there's
       // no need for it to be on the critical path for login; we just need

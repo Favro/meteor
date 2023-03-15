@@ -1209,6 +1209,9 @@ Object.assign(Subscription.prototype, {
     //     });
     //   };
 
+    if (res && Package["disable-default-publications"])
+      console.warn("Avoid using built-in cursor publications:", this._name);
+
     var self = this;
     var isCursor = function (c) {
       return c && c._publishCursor;
@@ -1488,7 +1491,6 @@ Server = function (options = {}) {
 
   self.publish_handlers = {};
   self.universal_publish_handlers = [];
-  self.disable_default_user_publication = false;
 
   self.method_handlers = {};
 
