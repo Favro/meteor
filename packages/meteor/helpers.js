@@ -222,3 +222,8 @@ function logErr(err) {
     );
   }
 }
+
+Meteor._sleepForMsAsync = function (ms) {
+	return new Promise(r => setTimeout(r, ms));
+};
+
