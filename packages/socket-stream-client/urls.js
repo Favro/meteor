@@ -13,7 +13,7 @@ function translateUrl(url, newSchemeBase, subPath) {
   }
 
   if (subPath !== "sockjs" && url.startsWith("/")) {
-    url = Meteor.absoluteUrl(url.substr(1));
+    url = !!window?.location?.origin ? (window.location.origin + url) : Meteor.absoluteUrl(url.substr(1));
   }
 
   var ddpUrlMatch = url.match(/^ddp(i?)\+sockjs:\/\//);
