@@ -2974,7 +2974,7 @@ function WebSocketTransport(transUrl, ignore, options) {
   };
   this.ws.onerror = function(e) {
     debug('error event', e);
-    self.emit('close', 1006, 'WebSocket connection broken');
+    self.emit('close', e?.code || 1006, e?.reason || 'WebSocket connection broken');
     self._cleanup();
   };
 }
