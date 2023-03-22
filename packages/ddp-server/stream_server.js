@@ -19,7 +19,10 @@ var websocketExtensions = once(function () {
     JSON.parse(process.env.SERVER_WEBSOCKET_COMPRESSION) : {};
 
   if (websocketCompressionConfig) {
-    extensions.push(Npm.require('permessage-deflate2').configure({
+    const maxLengthConfig = process.env.WEBSOCKET_FRAME_MESSAGE_MAX_LENGTH;
+    if (maxLengthConfig) websocketCompressionConfig.maxLength = parseInt(maxLengthConfig, 10);
+
+    extensions.push(Npm.require('permessage-deflate').configure({
       threshold: 1024,
       level: zlib.constants.Z_BEST_SPEED,
       memLevel: zlib.constants.Z_MIN_MEMLEVEL,
