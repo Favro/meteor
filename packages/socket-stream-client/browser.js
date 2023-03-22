@@ -160,7 +160,15 @@ export class ClientStream extends StreamClientCommon {
 
     const transport = __meteor_runtime_config__.DDP_TRANSPORT || 'sockjs';
 
-    if (transport === 'sockjs') {
+    // DISABLE_SOCKJS makes the client connect with a native WebSocket to
+    // /websocket even when the server transport is sockjs (which accepts raw
+    // websockets on that endpoint). Our nginx config rejects all other
+    // /sockjs/* HTTP endpoints, so the SockJS client's /info request would
+    // fail with a 403 before ever reaching the websocket stage.
+    const useSockJS = transport === 'sockjs' &&
+      !__meteor_runtime_config__.DISABLE_SOCKJS;
+
+    if (useSockJS) {
       const options = {
         transports: this._sockjsProtocolsWhitelist(),
         ...this.options._sockjsOptions
