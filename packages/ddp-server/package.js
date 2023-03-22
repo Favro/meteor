@@ -5,7 +5,7 @@ Package.describe({
 });
 
 Npm.depends({
-  "permessage-deflate": "0.1.7",
+  "permessage-deflate": `file://${sourceRoot}/../../npm-packages/permessage-deflate-node`,
   sockjs: "0.3.21"
 });
 
