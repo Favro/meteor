@@ -65,8 +65,12 @@ StreamServer = function () {
     serverOptions.websocket = false;
   } else {
     serverOptions.faye_server_options = {
-      extensions: websocketExtensions()
+      extensions: websocketExtensions(),
     };
+
+    // if not set, the default of 64MiB will be used on the underlining websocket-driver
+    let maxLength = process.env.WEBSOCKET_FRAME_MESSAGE_MAX_LENGTH;
+    if (maxLength) serverOptions.faye_server_options.maxLength = parseInt(maxLength, 10);
   }
 
   self.server = sockjs.createServer(serverOptions);

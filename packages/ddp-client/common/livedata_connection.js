@@ -28,6 +28,11 @@ class MongoIDMap extends IdMap {
   }
 }
 
+const WEBSOCKET_ERROR_CODES = {
+	too_large:            1009,
+	extension_error:      1010,
+};
+
 // @param url {String|Object} URL to Meteor app,
 //   or an object as a test hook (see code)
 // Options:
@@ -69,8 +74,7 @@ export class Connection {
       bufferedWritesInterval: 15,
       // Flush buffers immediately if writes are happening continuously for more than this many ms.
       bufferedWritesMaxAge: 30,
-
-      ...options
+      ...options,
     };
 
     // If set, called when we reconnect, queuing method calls _before_ the
@@ -79,6 +83,13 @@ export class Connection {
     // preferred method of setting a callback on reconnect is to use
     // DDP.onReconnect.
     self.onReconnect = null;
+
+    // If a connection is forcefully closed (maxLength limit, for example) we don't
+    // want to trigger the methods again.
+    self.shouldRetryMethods = true;
+
+    // Store last error from method if it set the shouldRetryMethods to false;
+    self.errorNoRetry = null;
 
     // as a test hook, allow passing a stream instead of a url.
     if (typeof url === 'object') {
@@ -256,7 +267,13 @@ export class Connection {
       });
     }
 
-    const onDisconnect = () => {
+    const onDisconnect = (e) => {
+      if ([WEBSOCKET_ERROR_CODES.too_large, WEBSOCKET_ERROR_CODES.extension_error].includes(e?.code)) {
+          self.shouldRetryMethods = false;
+          self.errorNoRetry = new Meteor.Error(e.code, e.reason);
+          console.error(e);
+      }
+
       if (self._heartbeat) {
         self._heartbeat.stop();
         self._heartbeat = null;
@@ -1553,6 +1570,15 @@ export class Connection {
       callback(self);
       return true;
     });
+
+    if (!self.shouldRetryMethods) {
+        self.shouldRetryMethods = true;
+        // Run the callback on all remaining method calls with the error as the parameter
+        while (oldOutstandingMethodBlocks.length) {
+            const methods = oldOutstandingMethodBlocks.pop().methods;
+            methods.forEach(m => m.receiveResult(self.errorNoRetry));
+        }
+    }
 
     if (isEmpty(oldOutstandingMethodBlocks)) return;
 

@@ -1291,8 +1291,8 @@ var WebSocketTransport = SockJS.websocket = function(ri, trans_url) {
     // https://github.com/sockjs/sockjs-client/issues/28
     // https://bugzilla.mozilla.org/show_bug.cgi?id=696085
     that.unload_ref = utils.unload_add(function(){that.ws.close()});
-    that.ws.onclose = function() {
-        that.ri._didMessage(utils.closeFrame(1006, "WebSocket connection broken"));
+    that.ws.onclose = function(e) {
+        that.ri._didMessage(utils.closeFrame(e?.code || 1006, e?.reason || "WebSocket connection broken"));
     };
 };
 

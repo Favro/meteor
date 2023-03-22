@@ -187,8 +187,8 @@ export class ClientStream extends StreamClientCommon {
       }
     };
 
-    this.socket.onclose = () => {
-      this._lostConnection();
+    this.socket.onclose = (err) => {
+      this._lostConnection(err);
     };
 
     this.socket.onerror = error => {
