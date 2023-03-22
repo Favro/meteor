@@ -190,8 +190,8 @@ export class ClientStream extends StreamClientCommon {
       this._lostConnection(new this.ConnectionError(error.message));
     });
 
-    clientOnIfCurrent('close', 'stream close callback', () => {
-      this._lostConnection();
+    clientOnIfCurrent('close', 'stream close callback', (err) => {
+      this._lostConnection(err);
     });
 
     clientOnIfCurrent('message', 'stream message callback', message => {

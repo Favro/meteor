@@ -46,6 +46,10 @@ export function createSockJSTransport() {
         serverOptions.faye_server_options = {
           extensions: options.websocketExtensions()
         };
+
+        // if not set, the default of 64MiB will be used on the underlining websocket-driver
+        let maxLength = process.env.WEBSOCKET_FRAME_MESSAGE_MAX_LENGTH;
+        if (maxLength) serverOptions.faye_server_options.maxLength = parseInt(maxLength, 10);
       }
 
       var server = sockjs.createServer(serverOptions);
