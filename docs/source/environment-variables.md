@@ -121,3 +121,7 @@ Configure Meteor's HTTP server to listen on a UNIX socket file path (e.g. `UNIX_
 
 This overrides the default UNIX file permissions on the UNIX socket file configured in `UNIX_SOCKET_PATH`. For example, `UNIX_SOCKET_PERMISSIONS=660` would set read/write permissions for both the user and group.
 
+## WEBSOCKET_FRAME_MESSAGE_MAX_LENGTH
+(_development, production_)
+
+The maximum allowed size of incoming message frames, in bytes. The default value is `2^26 - 1`, or 1 byte short of 64 MiB.
