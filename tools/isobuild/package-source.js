@@ -590,7 +590,7 @@ Object.assign(PackageSource.prototype, {
     try {
       files.runJavaScript(packageJsCode.toString('utf8'), {
         filename: 'package.js',
-        symbols: { Package, Npm, Cordova }
+        symbols: { Package, Npm, Cordova, sourceRoot: self.sourceRoot },
       });
     } catch (e) {
       buildmessage.exception(e);
@@ -962,7 +962,7 @@ Object.assign(PackageSource.prototype, {
           // then sources will not be the same files used to bundle the app.
           let missingMainModule = !! mainModule &&
             !sourceProcessorSet.isConflictsAllowed();
-          
+
           // Similar to the main module, when conflicts are allowed
           // these sources won't be used to build the app so the order
           // isn't important, and is difficult to accurately create when
