@@ -78,8 +78,10 @@ DDP._reconnectHook = new Hook({ bindEnvironment: false });
  * any other outstanding methods. For example, this can be used to re-establish
  * the appropriate authentication context on the connection.
  * @locus Anywhere
- * @param {Function} callback The function to call. It will be called with a
- * single argument, the [connection object](#ddp_connect) that is reconnecting.
+ * @param {Function} callback The function to call. It will be called with
+ * three arguments, the [connection object](#ddp_connect) that is reconnecting,
+ * the old outstanding methods names from before the reconnection and the last error
+ * (if there is one) that caused the connection to break .
  */
 DDP.onReconnect = callback => DDP._reconnectHook.register(callback);
 
