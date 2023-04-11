@@ -1422,8 +1422,10 @@ export class Connection {
     self._outstandingMethodBlocks = [];
 
     self.onReconnect && self.onReconnect();
+
+    const oldOutstandingMethodNames = oldOutstandingMethodBlocks.flatMap(({ methods }) => methods).map(({ _message }) => _message.method);
     DDP._reconnectHook.each((callback) => {
-      callback(self);
+      callback(self, oldOutstandingMethodNames, self.lastDisconnectError);
       return true;
     });
 
