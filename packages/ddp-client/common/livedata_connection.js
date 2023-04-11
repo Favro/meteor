@@ -1567,7 +1567,7 @@ export class Connection {
 
     self.onReconnect && self.onReconnect();
     DDP._reconnectHook.each(callback => {
-      callback(self);
+      callback(self, !self.shouldRetryMethods && self.errorNoRetry);
       return true;
     });
 
