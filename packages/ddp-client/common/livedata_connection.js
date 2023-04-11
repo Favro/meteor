@@ -1443,8 +1443,10 @@ export class Connection {
     if (self.onReconnect) {
       pushReconnectResult(() => self.onReconnect());
     }
+
+    const oldOutstandingMethodNames = oldOutstandingMethodBlocks.flatMap(({ methods }) => methods).map(({ _message }) => _message.method);
     DDP._reconnectHook.forEach((callback) => {
-      pushReconnectResult(() => callback(self));
+      pushReconnectResult(() => callback(self, oldOutstandingMethodNames, self.lastDisconnectError));
       return true;
     });
 
