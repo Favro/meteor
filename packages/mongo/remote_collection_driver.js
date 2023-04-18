@@ -1,3 +1,8 @@
+import {
+  ASYNC_COLLECTION_METHODS,
+  getAsyncMethodName
+} from "meteor/minimongo/constants";
+
 MongoInternals.RemoteCollectionDriver = function (
   mongo_url, options) {
   var self = this;
@@ -28,7 +33,21 @@ Object.assign(MongoInternals.RemoteCollectionDriver.prototype, {
     REMOTE_COLLECTION_METHODS.forEach(
       function (m) {
         ret[m] = _.bind(self.mongo[m], self.mongo, name);
+
+        if (!ASYNC_COLLECTION_METHODS.includes(m)) return;
+        const asyncMethodName = getAsyncMethodName(m);
+        ret[asyncMethodName] = function (...args) {
+          let result;
+          try {
+            result = ret[m](...args);
+          } catch (error) {
+            return Promise.reject(error);
+          }
+
+          return Promise.resolve(result);
+        }
       });
+
     return ret;
   }
 });
