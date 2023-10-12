@@ -67,13 +67,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
     '/f2.coffee',
     '/f3.coffee',
     '/packages/local-pack/p.coffee'
-  ], "web.browser.legacy");
-
-  await matchRun([
-    '/f1.coffee',
-    '/f2.coffee',
-    '/f3.coffee',
-    '/packages/local-pack/p.coffee'
   ], osArch);
 
   // App prints this:
@@ -84,7 +77,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
 
   // Only recompiles f2.
   await matchRun(["/f2.coffee"], "web.browser");
-  await matchRun(["/f2.coffee"], "web.browser.legacy");
   await matchRun(["/f2.coffee"], osArch);
 
   // Program prints this:
@@ -97,7 +89,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
   s.append("packages/local-pack/package.js", "\n// foo\n");
 
   await matchRun([], "web.browser");
-  await matchRun([], "web.browser.legacy");
   await matchRun([], osArch);
 
   await run.match("Coffeescript X is 2 Y is 3 FromPackage is 4");
@@ -108,7 +99,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
   s.write("packages/local-pack/p.coffee", "FromPackage = 'FromPackage is 5'");
 
   await matchRun(["/packages/local-pack/p.coffee"], "web.browser");
-  await matchRun(["/packages/local-pack/p.coffee"], "web.browser.legacy");
   await matchRun(["/packages/local-pack/p.coffee"], osArch);
 
   await run.match("Coffeescript X is 2 Y is 3 FromPackage is 5");
@@ -132,7 +122,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
   nextRunOrdinal = 1;
 
   await matchRun(["/f2.coffee"], "web.browser");
-  await matchRun(["/f2.coffee"], "web.browser.legacy");
   await matchRun(["/f2.coffee"], osArch);
 
   await run.match('Coffeescript X is 2 Y is edited FromPackage is 5');
@@ -200,13 +189,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
       "/top." + extension
     ], "web.browser");
 
-    await matchRun([
-      ...(hasCompileOneFileLaterSupport ? []
-          : ["/imports/dotdot." + extension]),
-      "/subdir/nested-root." + extension,
-      "/top." + extension
-    ], "web.browser.legacy");
-
     // There is no render execution in the server program, because it has
     // archMatching:'web'.  We'll see this more clearly when the next call later
     // is "#2" --- we didn't miss a call!
@@ -240,7 +222,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
     // preprocessor file in it. This should not require us to render anything.
     s.append("packages/local-pack/package.js", "\n// foo\n");
     await matchRun([], "web.browser");
-    await matchRun([], "web.browser.legacy");
     run.waitSecs(15);
     await run.match("Hello world");
 
@@ -266,7 +247,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
             setVariable('el4-style', 'inset'));
     expectedBorderStyles.el4 = 'inset';
     await matchRun([`/top.${ extension }`], "web.browser");
-    await matchRun([`/top.${ extension }`], "web.browser.legacy");
     await run.match("Client modified -- refreshing");
     await checkCSS(expectedBorderStyles);
 
@@ -275,7 +255,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
             '.el0 { border-style: double; }\n');
     expectedBorderStyles.el0 = 'double';
     await matchRun([`/subdir/nested-root.${ extension }`], "web.browser");
-    await matchRun([`/subdir/nested-root.${ extension }`], "web.browser.legacy");
     await run.match("Client modified -- refreshing");
     await checkCSS(expectedBorderStyles);
 
@@ -284,7 +263,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
             '.el6 { border-style: solid; }\n');
     expectedBorderStyles.el6 = 'solid';
     await matchRun([`/yet-another-root.${ extension }`], "web.browser");
-    await matchRun([`/yet-another-root.${ extension }`], "web.browser.legacy");
     await run.match("Client modified -- refreshing");
     await checkCSS(expectedBorderStyles);
 
@@ -310,7 +288,6 @@ selftest.define("compiler plugin caching - coffee", async () => {
     nextRunOrdinal = 1;
 
     await matchRun([`/top.${ extension }`], "web.browser");
-    await matchRun([`/top.${ extension }`], "web.browser.legacy");
     run.waitSecs(15);
     await run.match('Hello world');
     await checkCSS(expectedBorderStyles);

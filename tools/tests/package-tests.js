@@ -773,8 +773,8 @@ selftest.define("show and search local package", async function () {
   const impRaw = {
     A: "",
     B: "server",
-    C: "web.browser, web.browser.legacy, web.cordova",
-    D: "web.browser, web.browser.legacy",
+    C: "web.browser, web.cordova",
+    D: "web.browser",
     E: "web.cordova",
     G: "server, web.cordova",
   };
