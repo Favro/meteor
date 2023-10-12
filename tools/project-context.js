@@ -1482,7 +1482,6 @@ Object.assign(exports.PlatformList.prototype, {
     var self = this;
     var archs = [
       "web.browser",
-      "web.browser.legacy",
     ];
     if (self.usesCordova()) {
       archs.push("web.cordova");
@@ -1491,8 +1490,7 @@ Object.assign(exports.PlatformList.prototype, {
   },
 
   canDelayBuildingArch(arch) {
-    return CAN_DELAY_LEGACY_BUILD &&
-      arch === "web.browser.legacy";
+    return false;
   }
 });
 
@@ -1879,7 +1877,7 @@ export class MeteorConfig {
           if (arch === 'web') {
             addPackage(
               name,
-              ['web.browser', 'web.browser.legacy', 'web.cordova']
+              ['web.browser', 'web.cordova']
             );
           } else {
             get(arch).add(name);

@@ -241,8 +241,8 @@ export function matches(host: string, program: string): boolean {
 
 
 function getLegacyArches(): string[] {
-  const arches = ["web.browser.legacy"];
-  
+  const arches: string[] = [];
+
   // Check if cordova should use legacy mode
   // This needs to access the meteor config at runtime
   try {
@@ -254,7 +254,7 @@ function getLegacyArches(): string[] {
   } catch (e) {
     // If config is not available, default to modern (don't add web.cordova)
   }
-  
+
   return arches;
 }
 

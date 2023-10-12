@@ -271,10 +271,6 @@ function filterWebArchs(webArchs, excludeArchsOption, appDir, options) {
   const isBuildMode = platforms?.length > 0;
   if (isBuildMode) {
     // Build Mode
-    const isModernOnlyPlatform = platforms.includes('modern') && !platforms.includes('legacy');
-    if (isModernOnlyPlatform) {
-      webArchs = webArchs.filter(arch => arch !== 'web.browser.legacy');
-    }
     const hasCordovaPlatforms = platforms.includes('android') || platforms.includes('ios');
     if (!hasCordovaPlatforms) {
       webArchs = webArchs.filter(arch => arch !== 'web.cordova');
@@ -289,7 +285,7 @@ function filterWebArchs(webArchs, excludeArchsOption, appDir, options) {
       if (hasExcludeArchsOptions && hasModernArchsOnlyEnabled) {
         console.warn('modern.webArchOnly and --exclude-archs are both active. If both are set, --exclude-archs takes priority.');
       }
-      const automaticallyIgnoredLegacyArchs = (!hasExcludeArchsOptions && hasModernArchsOnlyEnabled) ? ['web.browser.legacy', 'web.cordova'] : [];
+      const automaticallyIgnoredLegacyArchs = (!hasExcludeArchsOptions && hasModernArchsOnlyEnabled) ? ['web.cordova'] : [];
       if (hasExcludeArchsOptions || automaticallyIgnoredLegacyArchs.length) {
         const excludeArchs = [...excludeArchsOptions, ...automaticallyIgnoredLegacyArchs];
         webArchs = webArchs.filter(arch => !excludeArchs.includes(arch));
