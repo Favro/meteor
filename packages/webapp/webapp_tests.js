@@ -181,7 +181,6 @@ Tinytest.addAsync(
       let nextCalled = false;
       await WebAppInternals.staticFilesMiddleware({
         "web.browser": {},
-        "web.browser.legacy": {},
       }, req, res, function () {
         nextCalled = true;
       });
@@ -215,7 +214,6 @@ Tinytest.addAsync(
     req.url = "/" + additionalScriptPathname;
     await WebAppInternals.staticFilesMiddleware({
       "web.browser": {},
-      "web.browser.legacy": {},
     }, req, res, function () {});
     const resBody = res.getBody();
     test.isTrue(resBody.indexOf(additionalScript) !== -1);

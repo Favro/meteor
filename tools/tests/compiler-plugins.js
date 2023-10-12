@@ -62,13 +62,6 @@ selftest.define("compiler plugin caching - coffee", () => {
     '/f2.coffee',
     '/f3.coffee',
     '/packages/local-pack/p.coffee'
-  ], "web.browser.legacy");
-
-  matchRun([
-    '/f1.coffee',
-    '/f2.coffee',
-    '/f3.coffee',
-    '/packages/local-pack/p.coffee'
   ], osArch);
 
   // App prints this:
@@ -79,7 +72,6 @@ selftest.define("compiler plugin caching - coffee", () => {
 
   // Only recompiles f2.
   matchRun(["/f2.coffee"], "web.browser");
-  matchRun(["/f2.coffee"], "web.browser.legacy");
   matchRun(["/f2.coffee"], osArch);
 
   // Program prints this:
@@ -92,7 +84,6 @@ selftest.define("compiler plugin caching - coffee", () => {
   s.append("packages/local-pack/package.js", "\n// foo\n");
 
   matchRun([], "web.browser");
-  matchRun([], "web.browser.legacy");
   matchRun([], osArch);
 
   run.match("Coffeescript X is 2 Y is 3 FromPackage is 4");
@@ -103,7 +94,6 @@ selftest.define("compiler plugin caching - coffee", () => {
   s.write("packages/local-pack/p.coffee", "FromPackage = 'FromPackage is 5'");
 
   matchRun(["/packages/local-pack/p.coffee"], "web.browser");
-  matchRun(["/packages/local-pack/p.coffee"], "web.browser.legacy");
   matchRun(["/packages/local-pack/p.coffee"], osArch);
 
   run.match("Coffeescript X is 2 Y is 3 FromPackage is 5");
@@ -127,7 +117,6 @@ selftest.define("compiler plugin caching - coffee", () => {
   nextRunOrdinal = 1;
 
   matchRun(["/f2.coffee"], "web.browser");
-  matchRun(["/f2.coffee"], "web.browser.legacy");
   matchRun(["/f2.coffee"], osArch);
 
   run.match('Coffeescript X is 2 Y is edited FromPackage is 5');
@@ -188,13 +177,6 @@ selftest.define("compiler plugin caching - coffee", () => {
       "/top." + extension
     ], "web.browser");
 
-    matchRun([
-      ...(hasCompileOneFileLaterSupport ? []
-          : ["/imports/dotdot." + extension]),
-      "/subdir/nested-root." + extension,
-      "/top." + extension
-    ], "web.browser.legacy");
-
     // There is no render execution in the server program, because it has
     // archMatching:'web'.  We'll see this more clearly when the next call later
     // is "#2" --- we didn't miss a call!
@@ -228,7 +210,6 @@ selftest.define("compiler plugin caching - coffee", () => {
     // preprocessor file in it. This should not require us to render anything.
     s.append("packages/local-pack/package.js", "\n// foo\n");
     matchRun([], "web.browser");
-    matchRun([], "web.browser.legacy");
     run.waitSecs(15);
     run.match("Hello world");
 
@@ -254,7 +235,6 @@ selftest.define("compiler plugin caching - coffee", () => {
             setVariable('el4-style', 'inset'));
     expectedBorderStyles.el4 = 'inset';
     matchRun([`/top.${ extension }`], "web.browser");
-    matchRun([`/top.${ extension }`], "web.browser.legacy");
     run.match("Client modified -- refreshing");
     checkCSS(expectedBorderStyles);
 
@@ -263,7 +243,6 @@ selftest.define("compiler plugin caching - coffee", () => {
             '.el0 { border-style: double; }\n');
     expectedBorderStyles.el0 = 'double';
     matchRun([`/subdir/nested-root.${ extension }`], "web.browser");
-    matchRun([`/subdir/nested-root.${ extension }`], "web.browser.legacy");
     run.match("Client modified -- refreshing");
     checkCSS(expectedBorderStyles);
 
@@ -272,7 +251,6 @@ selftest.define("compiler plugin caching - coffee", () => {
             '.el6 { border-style: solid; }\n');
     expectedBorderStyles.el6 = 'solid';
     matchRun([`/yet-another-root.${ extension }`], "web.browser");
-    matchRun([`/yet-another-root.${ extension }`], "web.browser.legacy");
     run.match("Client modified -- refreshing");
     checkCSS(expectedBorderStyles);
 
@@ -298,7 +276,6 @@ selftest.define("compiler plugin caching - coffee", () => {
     nextRunOrdinal = 1;
 
     matchRun([`/top.${ extension }`], "web.browser");
-    matchRun([`/top.${ extension }`], "web.browser.legacy");
     run.waitSecs(15);
     run.match('Hello world');
     checkCSS(expectedBorderStyles);

@@ -41,7 +41,6 @@ compiler.BUILT_BY = 'meteor/34';
 compiler.ALL_ARCHES = [
   "os",
   "web.browser",
-  "web.browser.legacy",
   "web.cordova"
 ];
 
