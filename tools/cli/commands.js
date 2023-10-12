@@ -167,7 +167,7 @@ export function parseRunTargets(targets) {
   });
 };
 
-const excludableWebArchs = ['web.browser', 'web.browser.legacy', 'web.cordova'];
+const excludableWebArchs = ['web.browser', 'web.cordova'];
 function filterWebArchs(webArchs, excludeArchsOption) {
   if (excludeArchsOption) {
     const excludeArchs = excludeArchsOption.trim().split(/\s*,\s*/)

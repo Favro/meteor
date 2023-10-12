@@ -6,8 +6,7 @@ const SOURCE_URL_PREFIX = "meteor://\ud83d\udcbbapp";
 let appliedChangeSets = [];
 let removeErrorMessage = null;
 
-const arch = Meteor.isCordova ? "web.cordova" :
-  Meteor.isModern ? "web.browser" : "web.browser.legacy";
+const arch = Meteor.isCordova ? "web.cordova" : "web.browser";
 
 const initialVersions = __meteor_runtime_config__.autoupdate.versions[arch];
 let lastUpdated = initialVersions.versionHmr;

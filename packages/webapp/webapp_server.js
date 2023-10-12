@@ -41,7 +41,7 @@ WebAppInternals.NpmModules = {
 
 // Though we might prefer to use web.browser (modern) as the default
 // architecture, safety requires a more compatible defaultArch.
-WebApp.defaultArch = 'web.browser.legacy';
+WebApp.defaultArch = 'web.browser';
 
 // XXX maps archs to manifests
 WebApp.clientPrograms = {};
@@ -168,9 +168,7 @@ WebApp.categorizeRequest = function(req) {
 
   // TODO Perhaps one day we could infer Cordova clients here, so that we
   // wouldn't have to use prefixed "/__cordova/..." URLs.
-  const preferredArchOrder = isModern(browser)
-    ? ['web.browser', 'web.browser.legacy']
-    : ['web.browser.legacy', 'web.browser'];
+  const preferredArchOrder = ['web.browser'];
 
   for (const arch of preferredArchOrder) {
     // If our preferred arch is not available, it's better to use another
@@ -1000,11 +998,6 @@ function runWebAppServer() {
       },
     },
 
-    'web.browser.legacy': {
-      runtimeConfigOverrides: {
-        isModern: false,
-      },
-    },
   };
 
   WebAppInternals.generateBoilerplate = function() {

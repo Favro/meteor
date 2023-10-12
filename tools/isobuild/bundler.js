@@ -587,8 +587,7 @@ class File {
         // web.browser or web.browser.legacy architecture, so those
         // architectures do not need a URL prefix. Other architectures,
         // such as web.cordova, still need a prefix like /__cordova/.
-        options.arch !== "web.browser" &&
-        options.arch !== "web.browser.legacy") {
+        options.arch !== "web.browser") {
       this.urlPrefix = "/__" +
         options.arch.split(".").slice(1).join(".");
     } else {

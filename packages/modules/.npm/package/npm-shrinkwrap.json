@@ -36,11 +36,6 @@
       "resolved": "https://registry.npmjs.org/magic-string/-/magic-string-0.25.9.tgz",
       "integrity": "sha512-RmF0AsMzgt25qzqqLc1+MbHmhdx0ojF2Fvs4XnOqz2ZOBXzzkEwc/dJQZCYHAn7v1jbVOjAZfK8msRn4BxO4VQ=="
     },
-    "meteor-babel-helpers": {
-      "version": "0.0.3",
-      "resolved": "https://registry.npmjs.org/meteor-babel-helpers/-/meteor-babel-helpers-0.0.3.tgz",
-      "integrity": "sha512-PgfmiyT/HiBaxwGHxS4t3Qi0fpmEW3O0WW2VfrgekiMGz3aZPd9/4PRIaMMZsfyjQ1vyEm6dZqTAFZENbuoTxw=="
-    },
     "periscopic": {
       "version": "2.0.3",
       "resolved": "https://registry.npmjs.org/periscopic/-/periscopic-2.0.3.tgz",

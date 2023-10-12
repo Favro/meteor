@@ -236,7 +236,6 @@ export function matches(host: string, program: string): boolean {
 }
 
 const legacyArches = [
-  "web.browser.legacy",
   // It's important to include web.browser.legacy resources in the Cordova
   // bundle, since Cordova bundles are built into the mobile application,
   // rather than being downloaded from a web server at runtime. This means

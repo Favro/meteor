@@ -263,7 +263,6 @@ function sizeCheck() {
   const RESOURCE_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
   const largeSizes = [ // Check size of each known architecture independently.
     "web.browser",
-    "web.browser.legacy",
   ].filter((arch) => !!WebApp.clientPrograms[arch])
   .map((arch) => {
     let totalSize = 0;

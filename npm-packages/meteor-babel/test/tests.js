@@ -709,30 +709,6 @@ val = "zxcv";`;
     assert.deepEqual(fns, expectedFns);
   });
 
-  (isNode8OrLater ? xit : it)
-  ("for-in loop sanitization", function loop() {
-    Array.prototype.dummy = () => {};
-
-    // Use the full version of sanitizeForInObject even though these tests
-    // are almost certainly running in an environment that supports
-    // defining non-enumerable properties.
-    meteorBabelHelpers.sanitizeForInObject =
-      meteorBabelHelpers._sanitizeForInObjectHard;
-
-    let sparseArray = [];
-    sparseArray[2] = "c";
-    sparseArray[0] = "a";
-
-    let keys = [];
-    for (let index in sparseArray) {
-      keys.push(index);
-    }
-
-    assert.deepEqual(keys, [0, 2]);
-
-    delete Array.prototype.dummy;
-  });
-
   it("TypeScript", () => {
     import { TSClass } from "./class";
     const tsObj = new TSClass("oyez");

@@ -1,5 +1,3 @@
-require("meteor-babel-helpers");
-
 var Module = module.constructor;
 
 // The Reify runtime now requires a working implementation of
