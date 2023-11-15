@@ -124,7 +124,7 @@ if [ -d "$SCRIPT_DIR/.git" ] || [ -f "$SCRIPT_DIR/.git" ]; then
         install_dev_bundle
     fi
 
-    export BABEL_CACHE_DIR="$SCRIPT_DIR/.babel-cache"
+    export BABEL_CACHE_DIR="${BABEL_CACHE_DIR:-$SCRIPT_DIR/.babel-cache}"
 fi
 
 DEV_BUNDLE="$SCRIPT_DIR/dev_bundle"
