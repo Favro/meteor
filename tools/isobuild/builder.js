@@ -371,7 +371,7 @@ Previous builder: ${previousBuilder.outputPath}, this builder: ${outputPath}`
     commonBabelOptions.sourceMaps = true;
 
     const toolsDir = files.getCurrentToolsDir();
-    const babelCacheDirectory =
+    const babelCacheDirectory = process.env.BABEL_CACHE_DIR ||
       files.pathJoin(files.pathDirname(toolsDir), ".babel-cache");
 
     relativePaths.forEach(relPath => {
