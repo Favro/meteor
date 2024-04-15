@@ -827,6 +827,8 @@ export class Connection {
           err && Meteor._debug("Error invoking Method '" + name + "'", err);
         };
       } else {
+        if (Meteor._isInsideStartupHook())
+          throw new Meteor.Error(500, "Calling a Meteor call within a Meteor.startup would deadlock.");
         // On the server, make the function synchronous. Throw on
         // errors, return on success.
         future = new Future();
