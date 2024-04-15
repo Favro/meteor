@@ -1,3 +1,11 @@
+var Fiber = Npm.require('fibers');
+
+var insideStartupHookSymbol = Symbol("_meteorInsideStartupHook");
+
+Meteor._isInsideStartupHook = function () {
+  return !!Fiber.current[insideStartupHookSymbol];
+};
+
 Meteor.startup = function startup(callback) {
   callback = Meteor.wrapFn(callback);
   if (process.env.METEOR_PROFILE) {
@@ -18,7 +26,14 @@ Meteor.startup = function startup(callback) {
   var bootstrap = global.__meteor_bootstrap__;
   if (bootstrap &&
       bootstrap.startupHooks) {
-    bootstrap.startupHooks.push(callback);
+    bootstrap.startupHooks.push(function () {
+      try {
+        Fiber.current[insideStartupHookSymbol] = true;
+        callback();
+      } finally {
+        delete Fiber.current[insideStartupHookSymbol];
+      }
+    });
   } else {
     // We already started up. Just call it now.
     callback();
