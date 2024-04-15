@@ -855,6 +855,8 @@ export class Connection {
           err && Meteor._debug("Error invoking Method '" + name + "'", err);
         };
       } else {
+        if (Meteor._isInsideStartupHook())
+          throw new Meteor.Error(500, "Calling a Meteor call within a Meteor.startup would deadlock.");
         promise = new Promise((resolve, reject) => {
           callback = (...allArgs) => {
             let args = Array.from(allArgs);
