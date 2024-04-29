@@ -67,7 +67,7 @@ DDPCommon.parseDDP = function (stringMessage) {
     delete msg.cleared;
   }
 
-  ['fields', 'params', 'result'].forEach(field => {
+  ['fields', 'replace', 'params', 'result'].forEach(field => {
     if (hasOwn.call(msg, field)) {
       msg[field] = EJSON._adjustTypesFromJSONValue(msg[field]);
     }
@@ -103,7 +103,7 @@ DDPCommon.stringifyDDP = function (msg) {
   }
 
   // adjust types to basic
-  ['fields', 'params', 'result'].forEach(field => {
+  ['fields', 'replace', 'params', 'result'].forEach(field => {
     if (hasOwn.call(copy, field)) {
       copy[field] = EJSON._adjustTypesToJSONValue(copy[field]);
     }
