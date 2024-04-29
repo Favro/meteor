@@ -177,6 +177,7 @@ export class MessageProcessors {
     const standardWrite =
       msg.msg === "added" ||
       msg.msg === "changed" ||
+      msg.msg === "replace" ||
       msg.msg === "removed";
 
     if (self._bufferedWritesInterval === 0 || !standardWrite) {
@@ -218,6 +219,9 @@ export class MessageProcessors {
         break;
       case 'changed':
         this._connection._process_changed(msg, updates);
+        break;
+      case 'replace':
+        this._connection._process_replace(msg, updates);
         break;
       case 'removed':
         this._connection._process_removed(msg, updates);

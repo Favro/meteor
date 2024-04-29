@@ -67,7 +67,7 @@ DDPCommon.parseDDP = function (stringMessage) {
     delete msg.cleared;
   }
 
-  ['fields', 'params', 'result'].forEach(field => {
+  ['fields', 'replace', 'params', 'result'].forEach(field => {
     if (hasOwn.call(msg, field)) {
       msg[field] = EJSON._adjustTypesFromJSONValue(msg[field]);
     }
@@ -81,9 +81,10 @@ DDPCommon.stringifyDDP = function (msg) {
     throw new Error("Message id is not a string");
   }
 
-  // Fast path: messages without fields/params/result need no EJSON conversion
-  // (e.g. 'removed', 'ready', 'nosub', 'ping', 'pong')
-  if (msg.fields === undefined && msg.params === undefined && msg.result === undefined) {
+  // Fast path: messages without fields/replace/params/result need no EJSON
+  // conversion (e.g. 'removed', 'ready', 'nosub', 'ping', 'pong')
+  if (msg.fields === undefined && msg.replace === undefined &&
+      msg.params === undefined && msg.result === undefined) {
     return JSON.stringify(msg);
   }
 
@@ -107,6 +108,9 @@ DDPCommon.stringifyDDP = function (msg) {
             (wireFields ??= {})[fieldKey] = EJSON.toJSONValue(value);
           }
         }
+        break;
+      case 'replace':
+        wire.replace = EJSON.toJSONValue(msg.replace);
         break;
       case 'params':
         wire.params = EJSON.toJSONValue(msg.params);

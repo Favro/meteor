@@ -88,7 +88,7 @@ export const ReplicationMethods = {
           if (!replace) {
             if (doc) self._collection.remove(mongoId);
           } else if (!doc) {
-            self._collection.insert(replace);
+            self._collection.insert({ _id: mongoId, ...replace });
           } else {
             // XXX check that replace has no $ ops
             self._collection.update(mongoId, replace);
@@ -169,7 +169,7 @@ export const ReplicationMethods = {
           if (!replace) {
             if (doc) await self._collection.removeAsync(mongoId);
           } else if (!doc) {
-            await self._collection.insertAsync(replace);
+            await self._collection.insertAsync({ _id: mongoId, ...replace });
           } else {
             // XXX check that replace has no $ ops
             await self._collection.updateAsync(mongoId, replace);
