@@ -224,7 +224,7 @@ Object.assign(Mongo.Collection.prototype, {
           if (!replace) {
             if (doc) self._collection.remove(mongoId);
           } else if (!doc) {
-            self._collection.insert(replace);
+            self._collection.insert({ _id: mongoId, ...replace });
           } else {
             // XXX check that replace has no $ ops
             self._collection.update(mongoId, replace);

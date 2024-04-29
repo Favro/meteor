@@ -1229,11 +1229,13 @@ export class Connection {
   _processOneDataMessage(msg, updates) {
     const messageType = msg.msg;
 
-    // msg is one of ['added', 'changed', 'removed', 'ready', 'updated']
+    // msg is one of ['added', 'changed', 'replace', 'removed', 'ready', 'updated']
     if (messageType === 'added') {
       this._process_added(msg, updates);
     } else if (messageType === 'changed') {
       this._process_changed(msg, updates);
+    } else if (messageType === 'replace') {
+      this._process_replace(msg, updates);
     } else if (messageType === 'removed') {
       this._process_removed(msg, updates);
     } else if (messageType === 'ready') {
@@ -1443,6 +1445,16 @@ export class Connection {
       if (serverDoc.document === undefined)
         throw new Error('Server sent changed for nonexisting id: ' + msg.id);
       DiffSequence.applyChanges(serverDoc.document, msg.fields);
+    } else {
+      self._pushUpdate(updates, msg.collection, msg);
+    }
+  }
+
+  _process_replace(msg, updates) {
+    const self = this;
+    const serverDoc = self._getServerDoc(msg.collection, MongoID.idParse(msg.id));
+    if (serverDoc) {
+      serverDoc.document = msg.replace;
     } else {
       self._pushUpdate(updates, msg.collection, msg);
     }
@@ -1830,7 +1842,7 @@ export class Connection {
     } else if (msg.msg === 'pong') {
       // noop, as we assume everything's a pong
     } else if (
-      ['added', 'changed', 'removed', 'ready', 'updated'].includes(msg.msg)
+      ['added', 'changed', 'replace', 'removed', 'ready', 'updated'].includes(msg.msg)
     ) {
       this._livedata_data(msg);
     } else if (msg.msg === 'nosub') {
