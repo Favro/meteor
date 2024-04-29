@@ -70,6 +70,7 @@ export class ConnectionStreamHandlers {
 
       case 'added':
       case 'changed':
+      case 'replace':
       case 'removed':
       case 'ready':
       case 'updated':

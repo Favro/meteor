@@ -62,6 +62,21 @@ export class DocumentProcessors {
   }
 
   /**
+   * @summary Process a 'replace' message from the server
+   * @param {Object} msg The replace message
+   * @param {Object} updates The updates accumulator
+   */
+  _process_replace(msg, updates) {
+    const self = this._connection;
+    const serverDoc = self._getServerDoc(msg.collection, MongoID.idParse(msg.id));
+    if (serverDoc) {
+      serverDoc.document = msg.replace;
+    } else {
+      self._pushUpdate(updates, msg.collection, msg);
+    }
+  }
+
+  /**
    * @summary Process a 'removed' message from the server
    * @param {Object} msg The removed message
    * @param {Object} updates The updates accumulator
