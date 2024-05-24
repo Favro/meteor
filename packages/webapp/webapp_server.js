@@ -1057,6 +1057,15 @@ async function runWebAppServer() {
 
   // webserver
   var app = createExpressApp()
+  app.use(function (req, res, next) {
+    if (req.method === 'HEAD' && req.headers['content-length'] > 0) {
+      res.writeHead(403);
+      res.write('Not allowed');
+      res.end();
+      return;
+    }
+    next();
+  });
 
   // Packages and apps can add handlers that run before any other Meteor
   // handlers via WebApp.rawExpressHandlers.
