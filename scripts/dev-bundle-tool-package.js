@@ -68,7 +68,7 @@ var packageJson = {
     'lru-cache': '6.0.0',
     "anser": "2.1.1",
     'xmlbuilder2': '1.8.1',
-    "ws": "7.4.5",
+    "ws": "7.5.10",
     "open":"8.4.2",
     "acorn": "8.14.1",
   }
