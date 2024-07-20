@@ -823,6 +823,19 @@ MongoConnection.prototype.findOne = function (collection_name, selector,
   return self.find(collection_name, selector, options).fetch()[0];
 };
 
+MongoConnection.prototype.findOneAsync = async function (collection_name, selector,
+											  options) {
+	var self = this;
+	if (arguments.length === 1)
+		selector = {};
+
+	options = options || {};
+	options.limit = 1;
+
+	const results = await self.find(collection_name, selector, options).fetchAsync();
+	return results[0];
+};
+
 // We'll actually design an index API later. For now, we just pass through to
 // Mongo's, but make it synchronous.
 MongoConnection.prototype.createIndex = function (collectionName, index,
@@ -1180,6 +1193,7 @@ _.extend(SynchronousCursor.prototype, {
 
   forEach: function (callback, thisArg) {
     var self = this;
+	const wrappedFn = Meteor.wrapFn(callback);
 
     // Get back to the beginning.
     self._rewind();
@@ -1191,16 +1205,17 @@ _.extend(SynchronousCursor.prototype, {
     while (true) {
       var doc = self._nextObject();
       if (!doc) return;
-      callback.call(thisArg, doc, index++, self._selfForIteration);
+      wrappedFn.call(thisArg, doc, index++, self._selfForIteration);
     }
   },
 
   // XXX Allow overlapping callback executions if callback yields.
   map: function (callback, thisArg) {
     var self = this;
+	const wrappedFn = Meteor.wrapFn(callback);
     var res = [];
     self.forEach(function (doc, index) {
-      res.push(callback.call(thisArg, doc, index, self._selfForIteration));
+      res.push(wrappedFn.call(thisArg, doc, index, self._selfForIteration));
     });
     return res;
   },
