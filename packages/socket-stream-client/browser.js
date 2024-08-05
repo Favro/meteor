@@ -9,7 +9,7 @@ import { StreamClientCommon } from "./common.js";
 // import() would introduce in _launchConnection(). When a non-SockJS transport
 // is selected, SockJS remains in the bundle but is never used — the connection
 // goes through native WebSocket directly.
-import SockJS from "./sockjs-1.6.1-min-.js";
+import SockJS from "./sockjs-1.6.1.js";
 
 export class ClientStream extends StreamClientCommon {
   // @param url {String} URL to Meteor app
