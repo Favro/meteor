@@ -7,7 +7,7 @@ Package.describe({
 });
 
 Npm.depends({
-  "meteor-promise": "0.9.0",
+  "meteor-promise": `file://${sourceRoot}/../../npm-packages/meteor-promise`,
   "promise": "8.1.0"
 });
 
