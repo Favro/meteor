@@ -139,6 +139,15 @@ exports.makeCompatible = function (Promise, Fiber) {
       dynamics: cloneFiberOwnProperties(fiber)
     }, Promise);
   };
+
+  if (!Promise.try) {
+    // Polyfill.
+    Promise.try = function (func) {
+      return new Promise(function (resolve) {
+        resolve(func());
+      });
+    };
+  }
 };
 
 function wrapCallback(callback, Promise) {
