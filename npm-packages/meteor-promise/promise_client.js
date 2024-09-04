@@ -13,6 +13,15 @@ exports.makeCompatible = function (Promise) {
 
     return es6PromiseThen.call(this, onResolved, onRejected);
   };
+
+  if (!Promise.try) {
+    // Polyfill.
+    Promise.try = function (func) {
+      return new Promise(function (resolve) {
+        resolve(func());
+      });
+    };
+  }
 };
 
 function raise(exception) {
