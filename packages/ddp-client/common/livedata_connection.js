@@ -458,7 +458,7 @@ export class Connection {
           this.ready && this.readyDeps.changed();
         },
         stop() {
-          this.connection._send({ msg: 'unsub', id: id });
+          this.connection._sendQueued({ msg: 'unsub', id: id });
           this.remove();
 
           if (callbacks.onStop) {
@@ -586,54 +586,15 @@ export class Connection {
    * @param {EJSONable} [arg1,arg2...] Optional method arguments
    * @returns {Promise}
    */
-  async callAsync(name /* .. [arguments] .. */) {
+  callAsync(name /* .. [arguments] .. */) {
     const args = slice.call(arguments, 1);
     if (args.length && typeof args[args.length - 1] === 'function') {
       throw new Error(
         "Meteor.callAsync() does not accept a callback. You should 'await' the result, or use .then()."
       );
     }
-    /*
-    * This is necessary because when you call a Promise.then, you're actually calling a bound function by Meteor.
-    *
-    * This is done by this code https://github.com/meteor/meteor/blob/17673c66878d3f7b1d564a4215eb0633fa679017/npm-packages/meteor-promise/promise_client.js#L1-L16. (All the logic below can be removed in the future, when we stop overwriting the
-    * Promise.)
-    *
-    * When you call a ".then()", like "Meteor.callAsync().then()", the global context (inside currentValues)
-    * will be from the call of Meteor.callAsync(), and not the context after the promise is done.
-    *
-    * This means that without this code if you call a stub inside the ".then()", this stub will act as a simulation
-    * and won't reach the server.
-    *
-    * Inside the function _getIsSimulation(), if isFromCallAsync is false, we continue to consider just the
-    * alreadyInSimulation, otherwise, isFromCallAsync is true, we also check the value of callAsyncMethodRunning (by
-    * calling DDP._CurrentMethodInvocation._isCallAsyncMethodRunning()).
-    *
-    * With this, if a stub is running inside a ".then()", it'll know it's not a simulation, because callAsyncMethodRunning
-    * will be false.
-    *
-    * DDP._CurrentMethodInvocation._set() is important because without it, if you have a code like:
-    *
-    * Meteor.callAsync("m1").then(() => {
-    *   Meteor.callAsync("m2")
-    * })
-    *
-    * The call the method m2 will act as a simulation and won't reach the server. That's why we reset the context here
-    * before calling everything else.
-    *
-    * */
-    DDP._CurrentMethodInvocation._set();
-    DDP._CurrentMethodInvocation._setCallAsyncMethodRunning(true);
-    return new Promise((resolve, reject) => {
-      this.applyAsync(name, args, { isFromCallAsync: true }, (err, result) => {
-        DDP._CurrentMethodInvocation._setCallAsyncMethodRunning(false);
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(result);
-      });
-    });
+
+    return this.applyAsync(name, args, { returnServerResultPromise: true });
   }
 
   /**
@@ -667,6 +628,11 @@ export class Connection {
       try {
         stubOptions.stubReturnValue = DDP._CurrentMethodInvocation
           .withValue(invocation, stubInvocation);
+        if (Meteor._isPromise(stubOptions.stubReturnValue)) {
+          Meteor._debug(
+            `Method ${name}: Calling a method that has an async method stub with call/apply can lead to unexpected behaviors. Use callAsync/applyAsync instead.`
+          );
+        }
       } catch (e) {
         stubOptions.exception = e;
       }
@@ -688,9 +654,33 @@ export class Connection {
    * @param {Boolean} options.noRetry (Client only) if true, don't send this method again on reload, simply call the callback an error with the error code 'invocation-failed'.
    * @param {Boolean} options.throwStubExceptions (Client only) If true, exceptions thrown by method stubs will be thrown instead of logged, and the method will not be invoked on the server.
    * @param {Boolean} options.returnStubValue (Client only) If true then in cases where we would have otherwise discarded the stub's return value and returned undefined, instead we go ahead and return it. Specifically, this is any time other than when (a) we are already inside a stub or (b) we are in Node and no callback was provided. Currently we require this flag to be explicitly passed to reduce the likelihood that stub return values will be confused with server return values; we may improve this in future.
-   * @param {Function} [asyncCallback] Optional callback.
    */
-  async applyAsync(name, args, options, callback) {
+  applyAsync(name, args, options, callback = null) {
+    const stubPromise = this._applyAsyncStubInvocation(name, args, options);
+
+    const promise = this._applyAsync({
+      name,
+      args,
+      options,
+      callback,
+      stubPromise,
+    });
+    if (Meteor.isClient) {
+      // only return the stubReturnValue
+      promise.stubPromise = stubPromise.then(o => {
+        if (o.exception) {
+          throw o.exception;
+        }
+        return o.stubReturnValue;
+      });
+      // this avoids attribute recursion
+      promise.serverPromise = new Promise((resolve, reject) =>
+        promise.then(resolve).catch(reject),
+      );
+    }
+    return promise;
+  }
+  async _applyAsyncStubInvocation(name, args, options) {
     const { stubInvocation, invocation, ...stubOptions } = this._stubCall(name, EJSON.clone(args), options);
     if (stubOptions.hasStub) {
       if (
@@ -714,14 +704,9 @@ export class Connection {
           invocation
         );
         try {
-          const resultOrThenable = stubInvocation();
-          const isThenable =
-            resultOrThenable && typeof resultOrThenable.then === 'function';
-          if (isThenable) {
-            stubOptions.stubReturnValue = await resultOrThenable;
-          } else {
-            stubOptions.stubReturnValue = resultOrThenable;
-          }
+          stubOptions.stubReturnValue = await stubInvocation();
+        } catch (e) {
+          stubOptions.exception = e;
         } finally {
           DDP._CurrentMethodInvocation._set(currentContext);
         }
@@ -729,6 +714,10 @@ export class Connection {
         stubOptions.exception = e;
       }
     }
+    return stubOptions;
+  }
+  async _applyAsync({ name, args, options, callback, stubPromise }) {
+    const stubOptions = await stubPromise;
     return this._apply(name, stubOptions, args, options, callback);
   }
 
@@ -818,7 +807,11 @@ export class Connection {
     // If the caller didn't give a callback, decide what to do.
     let future;
     if (!callback) {
-      if (Meteor.isClient) {
+      if (
+        Meteor.isClient &&
+        !options.returnServerResultPromise &&
+        (!options.isFromCallAsync || options.returnStubValue)
+      ) {
         // On the client, we don't have fibers, so we can't block. The
         // only thing we can do is to return undefined and discard the
         // result of the RPC. If an error occurred then print the error
@@ -826,6 +819,18 @@ export class Connection {
         callback = err => {
           err && Meteor._debug("Error invoking Method '" + name + "'", err);
         };
+      } else if (Meteor.isClient) {
+        future = new Promise((resolve, reject) => {
+          callback = (...allArgs) => {
+            let args = Array.from(allArgs);
+            let err = args.shift();
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve(...args);
+          };
+        });
       } else {
         if (Meteor._isInsideStartupHook())
           throw new Meteor.Error(500, "Calling a Meteor call within a Meteor.startup would deadlock.");
@@ -877,7 +882,17 @@ export class Connection {
     // If we're using the default callback on the server,
     // block waiting for the result.
     if (future) {
-      return future.wait();
+      if (Meteor.isServer)
+        return future.wait();
+
+      // This is the result of the method ran in the client.
+      // You can opt-in in getting the local result by running:
+      // const { stubPromise, serverPromise } = Meteor.callAsync(...);
+      // const whatServerDid = await serverPromise;
+      if (options.returnStubValue) {
+        return future.then(() => stubReturnValue);
+      }
+      return future;
     }
     return options.returnStubValue ? stubReturnValue : undefined;
   }
@@ -1032,6 +1047,16 @@ export class Connection {
   // Sends the DDP stringification of the given message object
   _send(obj) {
     this._stream.send(DDPCommon.stringifyDDP(obj));
+  }
+
+  // Always queues the call before sending the message
+  // Used, for example, on subscription.[id].stop() to make sure a "sub" message is always called before an "unsub" message
+  // https://github.com/meteor/meteor/issues/13212
+  //
+  // This is part of the actual fix for the rest check:
+  // https://github.com/meteor/meteor/pull/13236
+  _sendQueued(obj) {
+    this._send(obj, true);
   }
 
   // We detected via DDP-level heartbeats that we've lost the
@@ -1731,28 +1756,8 @@ export class Connection {
     if (msg.offendingMessage) Meteor._debug('For: ', msg.offendingMessage);
   }
 
-  _callOnReconnectAndSendAppropriateOutstandingMethods() {
+  _sendOutstandingMethodBlocksMessages(oldOutstandingMethodBlocks) {
     const self = this;
-    const oldOutstandingMethodBlocks = self._outstandingMethodBlocks;
-    self._outstandingMethodBlocks = [];
-
-    self.onReconnect && self.onReconnect();
-
-    const oldOutstandingMethodNames = oldOutstandingMethodBlocks.flatMap(({ methods }) => methods).map(({ _message }) => _message.method);
-    DDP._reconnectHook.each(callback => {
-      callback(self, oldOutstandingMethodNames, self.lastDisconnectError);
-      return true;
-    });
-
-    if (!self.shouldRetryMethods) {
-      self.shouldRetryMethods = true;
-      // Run the callback on all remaining method calls with the error as the parameter
-      while (oldOutstandingMethodBlocks.length) {
-        const methods = oldOutstandingMethodBlocks.pop().methods;
-        methods.forEach(m => m.receiveResult(self.lastDisconnectError));
-      }
-    }
-
     if (isEmpty(oldOutstandingMethodBlocks)) return;
 
     // We have at least one block worth of old outstanding methods to try
@@ -1767,9 +1772,11 @@ export class Connection {
     // OK, there are blocks on both sides. Special case: merge the last block of
     // the reconnect methods with the first block of the original methods, if
     // neither of them are "wait" blocks.
-    if (! last(self._outstandingMethodBlocks).wait &&
-        ! oldOutstandingMethodBlocks[0].wait) {
-      oldOutstandingMethodBlocks[0].methods.forEach(m => {
+    if (
+      !last(self._outstandingMethodBlocks).wait &&
+      !oldOutstandingMethodBlocks[0].wait
+    ) {
+      oldOutstandingMethodBlocks[0].methods.forEach((m) => {
         last(self._outstandingMethodBlocks).methods.push(m);
 
         // If this "last block" is also the first block, send the message.
@@ -1783,6 +1790,28 @@ export class Connection {
 
     // Now add the rest of the original blocks on.
     self._outstandingMethodBlocks.push(...oldOutstandingMethodBlocks);
+  }
+  _callOnReconnectAndSendAppropriateOutstandingMethods() {
+    const self = this;
+    const oldOutstandingMethodBlocks = self._outstandingMethodBlocks;
+    self._outstandingMethodBlocks = [];
+
+    self.onReconnect && self.onReconnect();
+    DDP._reconnectHook.each((callback) => {
+      callback(self);
+      return true;
+    });
+
+    if (!self.shouldRetryMethods) {
+      self.shouldRetryMethods = true;
+      // Run the callback on all remaining method calls with the error as the parameter
+      while (oldOutstandingMethodBlocks.length) {
+        const methods = oldOutstandingMethodBlocks.pop().methods;
+        methods.forEach(m => m.receiveResult(self.lastDisconnectError));
+      }
+    }
+
+    self._sendOutstandingMethodBlocksMessages(oldOutstandingMethodBlocks);
   }
 
   // We can accept a hot code push if there are no methods in flight.
@@ -1935,7 +1964,7 @@ export class Connection {
     // add new subscriptions at the end. this way they take effect after
     // the handlers and we don't see flicker.
     Object.entries(this._subscriptions).forEach(([id, sub]) => {
-      this._send({
+      this._sendQueued({
         msg: 'sub',
         id: id,
         name: sub.name,
