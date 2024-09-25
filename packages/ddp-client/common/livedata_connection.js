@@ -805,6 +805,7 @@ export class Connection {
     // return the value of the RPC to the caller.
 
     // If the caller didn't give a callback, decide what to do.
+    let promise;
     let future;
     if (!callback) {
       if (
@@ -812,15 +813,11 @@ export class Connection {
         !options.returnServerResultPromise &&
         (!options.isFromCallAsync || options.returnStubValue)
       ) {
-        // On the client, we don't have fibers, so we can't block. The
-        // only thing we can do is to return undefined and discard the
-        // result of the RPC. If an error occurred then print the error
-        // to the console.
-        callback = err => {
+        callback = (err) => {
           err && Meteor._debug("Error invoking Method '" + name + "'", err);
         };
       } else if (Meteor.isClient) {
-        future = new Promise((resolve, reject) => {
+        promise = new Promise((resolve, reject) => {
           callback = (...allArgs) => {
             let args = Array.from(allArgs);
             let err = args.shift();
@@ -879,24 +876,14 @@ export class Connection {
     // If we added it to the first block, send it out now.
     if (self._outstandingMethodBlocks.length === 1) methodInvoker.sendMessage();
 
-    // If we're using the default callback on the server,
-    // block waiting for the result.
     if (future) {
-      if (Meteor.isServer)
-        return future.wait();
-
-      // This is the result of the method ran in the client.
-      // You can opt-in in getting the local result by running:
-      // const { stubPromise, serverPromise } = Meteor.callAsync(...);
-      // const whatServerDid = await serverPromise;
-      if (options.returnStubValue) {
-        return future.then(() => stubReturnValue);
-      }
-      return future;
+      return future.wait();
+    } else if (promise) {
+      return options.returnStubValue ? promise.then(() => stubReturnValue) : promise;
+    } else {
+      return options.returnStubValue ? stubReturnValue : undefined;
     }
-    return options.returnStubValue ? stubReturnValue : undefined;
   }
-
 
   _stubCall(name, args, options) {
     // Run the stub, if we have one. The stub is supposed to make some
