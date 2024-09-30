@@ -62,6 +62,8 @@ export class MessageProcessors {
     // Clear _afterUpdateCallbacks.
     self._afterUpdateCallbacks = [];
 
+    self.shouldBlockQuiescence = false;
+
     // Mark all named subscriptions which are ready as needing to be revived.
     self._subsBeingRevived = Object.create(null);
     Object.entries(self._subscriptions).forEach(([id, sub]) => {
