@@ -84,6 +84,9 @@ export class Connection {
     // DDP.onReconnect.
     self.onReconnect = null;
 
+    // If true, all new method calls and subscriptions will be set as blocking quiescence.
+    self.shouldBlockQuiescence = false;
+
     // If a connection is forcefully closed (maxLength limit, for example) we don't
     // want to trigger the methods again.
     self.shouldRetryMethods = true;
@@ -467,6 +470,10 @@ export class Connection {
         }
       };
       self._send({ msg: 'sub', id: id, name: name, params: params });
+
+      if (self.shouldBlockQuiescence) {
+        self._subsBeingRevived[id] = true;
+      }
     }
 
     // return a handle to the application.
@@ -859,6 +866,10 @@ export class Connection {
       noRetry: !!options.noRetry
     });
 
+    if (self.shouldBlockQuiescence) {
+      self._methodsBlockingQuiescence[methodId] = true;
+    }
+
     if (future) {
       self._addOutstandingMethod(methodInvoker, options);
       return future.wait();
@@ -1174,6 +1185,8 @@ export class Connection {
 
     // Clear _afterUpdateCallbacks.
     self._afterUpdateCallbacks = [];
+
+    self.shouldBlockQuiescence = false;
 
     // Mark all named subscriptions which are ready (ie, we already called the
     // ready callback) as needing to be revived.
