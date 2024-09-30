@@ -607,6 +607,7 @@ export class Connection {
    * @param {EJSONable[]} args Method arguments
    * @param {Object} [options]
    * @param {Boolean} options.wait (Client only) If true, don't send this method until all previous method calls have completed, and don't send any subsequent method calls until this one is completed.
+   * @param {Boolean} options.sendImmediately (Client only) If true, always send the message to the server now, even if there are pending wait methods before.
    * @param {Function} options.onResultReceived (Client only) This callback is invoked with the error or result of the method (just like `asyncCallback`) as soon as the error or result is available. The local cache may not yet reflect the writes performed by the method.
    * @param {Boolean} options.noRetry (Client only) if true, don't send this method again on reload, simply call the callback an error with the error code 'invocation-failed'.
    * @param {Boolean} options.throwStubExceptions (Client only) If true, exceptions thrown by method stubs will be thrown instead of logged, and the method will not be invoked on the server.
@@ -650,6 +651,7 @@ export class Connection {
    * @param {EJSONable[]} args Method arguments
    * @param {Object} [options]
    * @param {Boolean} options.wait (Client only) If true, don't send this method until all previous method calls have completed, and don't send any subsequent method calls until this one is completed.
+   * @param {Boolean} options.sendImmediately (Client only) If true, always send the message to the server now, even if there are pending wait methods before.
    * @param {Function} options.onResultReceived (Client only) This callback is invoked with the error or result of the method (just like `asyncCallback`) as soon as the error or result is available. The local cache may not yet reflect the writes performed by the method.
    * @param {Boolean} options.noRetry (Client only) if true, don't send this method again on reload, simply call the callback an error with the error code 'invocation-failed'.
    * @param {Boolean} options.throwStubExceptions (Client only) If true, exceptions thrown by method stubs will be thrown instead of logged, and the method will not be invoked on the server.
@@ -1694,6 +1696,20 @@ export class Connection {
   }
 
   _addOutstandingMethod(methodInvoker, options) {
+    if (options?.sendImmediately) {
+      // Always add to the first block and send immediately.
+      if (isEmpty(this._outstandingMethodBlocks)) {
+        this._outstandingMethodBlocks.push({
+          wait: false,
+          methods: [],
+        });
+      }
+
+      this._outstandingMethodBlocks[0].methods.push(methodInvoker);
+      methodInvoker.sendMessage();
+      return;
+    }
+
     if (options?.wait) {
       // It's a wait method! Wait methods go in their own block.
       this._outstandingMethodBlocks.push({
