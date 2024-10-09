@@ -104,6 +104,9 @@ function install_dev_bundle {
     rm -rf "$SCRIPT_DIR/dev_bundle"
     mv "$BUNDLE_TMPDIR" "$SCRIPT_DIR/dev_bundle"
 
+    # To be removed if not necessary when meteor is updated to 3.x
+    sed -i -e "s/build_file_path, 'rU'/build_file_path, 'r'/g" "$SCRIPT_DIR/dev_bundle/lib/node_modules/npm/node_modules/node-gyp/gyp/pylib/gyp/input.py"
+
     echo "Installed dependency kit v${BUNDLE_VERSION} in dev_bundle." >&2
     echo >&2
 
