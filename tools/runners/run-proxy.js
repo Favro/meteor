@@ -1,6 +1,8 @@
 var Anser = require("anser");
 var runLog = require('./run-log.js');
 
+import { statSync, unlinkSync, existsSync } from 'fs';
+
 // options: listenPort, proxyToPort, proxyToHost,
 // onFailure, ignoredUrls
 var Proxy = function (options) {
@@ -8,6 +10,7 @@ var Proxy = function (options) {
 
   self.listenPort = options.listenPort;
   self.listenHost = options.listenHost;
+  self.listenSocket = options.listenSocket;
   // note: run-all.js updates proxyToPort directly
   self.proxyToPort = options.proxyToPort;
   self.proxyToHost = options.proxyToHost || '127.0.0.1';
@@ -21,6 +24,30 @@ var Proxy = function (options) {
 
   self.proxy = null;
   self.server = null;
+};
+
+// Copied from packages/webapp/webapp_server.js
+const removeExistingSocketFile = (socketPath) => {
+  try {
+    if (statSync(socketPath).isSocket()) {
+      // Since a new socket file will be created, remove the existing
+      // file.
+      unlinkSync(socketPath);
+    } else {
+      throw new Error(
+        `An existing file was found at "${socketPath}" and it is not ` +
+        'a socket file. Please confirm PORT is pointing to valid and ' +
+        'un-used socket file path.'
+      );
+    }
+  } catch (error) {
+    // If there is no existing socket file to cleanup, great, we'll
+    // continue normally. If the caught exception represents any other
+    // issue, re-throw.
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
 };
 
 Object.assign(Proxy.prototype, {
@@ -131,7 +158,7 @@ Object.assign(Proxy.prototype, {
       }
     });
 
-    self.server.listen(self.listenPort, self.listenHost || '0.0.0.0', function () {
+    const onNewConnection = function () {
       if (self.server) {
         self.started = true;
       } else {
@@ -141,7 +168,14 @@ Object.assign(Proxy.prototype, {
         server.close();
       }
       allowStart();
-    });
+    };
+
+    if (self.listenSocket) {
+      removeExistingSocketFile(self.listenSocket);
+      self.server.listen(self.listenSocket, onNewConnection);
+    } else {
+      self.server.listen(self.listenPort, self.listenHost || '0.0.0.0', onNewConnection);
+    }
 
     await promise;
   },
