@@ -72,6 +72,7 @@ class Runner {
     self.proxy = new Proxy({
       listenPort,
       listenHost: proxyHost,
+      listenSocket: process.env.PROXY_UNIX_SOCKET_PATH,
       proxyToPort: self.appPort,
       proxyToHost: appHost,
       proxyToSocket: process.env.UNIX_SOCKET_PATH,
@@ -214,6 +215,12 @@ class Runner {
     if (! self.stopped && ! self.quiet) {
       runLog.log("");
       runLog.log("App running at: " + self.rootUrl,  { arrow: true });
+      if (process.env.PROXY_UNIX_SOCKET_PATH) {
+        runLog.log(
+          `  Meteor proxy: ${process.env.PROXY_UNIX_SOCKET_PATH}`,
+          { arrow: true }
+        );
+      }
 
       if (process.platform === "win32") {
         runLog.log("   Type Control-C twice to stop.");
