@@ -1291,6 +1291,11 @@ Object.assign(PackageSource.prototype, {
       ...sourceReadOptions.exclude,
     );
 
+    if (process.env.METEOR_ANY_LEVEL_EXCLUDES) {
+      for (const exclude of process.env.METEOR_ANY_LEVEL_EXCLUDES.split(";"))
+        anyLevelExcludes.push(new RegExp(exclude));
+    }
+
     const topLevelExcludes = isApp ? [
       ...anyLevelExcludes,
       /^packages\/$/,
