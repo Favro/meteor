@@ -29,3 +29,4 @@ mongo-test-output
 
 # core packages shouldn't have .versions files
 packages/*/.versions
+.package-garbage-*
