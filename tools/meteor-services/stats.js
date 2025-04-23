@@ -37,6 +37,9 @@ var packageList = function (projectContext) {
 // - site: If it's a deploy, the name of the site ("foo.meteor.com") that we're
 //   deploying to.
 var recordPackages = function (options) {
+  if (process.env.METEOR_PACKAGE_STATS_DISABLE)
+    return;
+
   // Before doing anything, look at the app's dependencies to see if the
   // opt-out package is there; if present, we don't record any stats.
   var packages = packageList(options.projectContext);
