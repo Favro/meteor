@@ -599,7 +599,7 @@ Object.assign(PackageSource.prototype, {
     try {
       await files.runJavaScript(packageJsCode.toString('utf8'), {
         filename: 'package.js',
-        symbols: { Package, Npm, Cordova }
+        symbols: { Package, Npm, Cordova, sourceRoot: self.sourceRoot },
       });
     } catch (e) {
       buildmessage.exception(e);
