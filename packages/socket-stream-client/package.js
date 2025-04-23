@@ -6,8 +6,9 @@ Package.describe({
 });
 
 Npm.depends({
-  "faye-websocket": "0.11.4",
+  "faye-websocket": `file://${sourceRoot}/../../npm-packages/faye-websocket-node`,
   "permessage-deflate": `file://${sourceRoot}/../../npm-packages/permessage-deflate-node`,
+  "websocket-driver": "0.7.4",
   "lodash.isequal": "4.5.0",
   "lodash.once": "4.1.1"
 });

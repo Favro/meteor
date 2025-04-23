@@ -47,3 +47,5 @@ coverage-ts/
 # claude code
 .claude/skills/
 .claude/settings.local.json
+
+.package-garbage-*
