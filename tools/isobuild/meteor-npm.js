@@ -661,7 +661,7 @@ var updateExistingNpmDirectory = async function (packageName, newPackageNpmDir,
   var shrinkwrappedDependenciesTree =
     getShrinkwrappedDependenciesTree(packageNpmDir);
 
-  const npmTree = { dependencies: {} };
+  let npmTree = { dependencies: {} };
   _.each(npmDependencies, (version, name) => {
     npmTree.dependencies[name] = { version };
   });
@@ -676,8 +676,12 @@ var updateExistingNpmDirectory = async function (packageName, newPackageNpmDir,
     );
     throw e;
   }
-  const minShrinkwrapTree =
+  let minShrinkwrapTree =
     minimizeDependencyTree(shrinkwrappedDependenciesTree);
+
+  const npmTreeHadFileReference = hasFileReference(npmTree);
+  minShrinkwrapTree = removeFileDependencies(minShrinkwrapTree, npmTree);
+  npmTree = removeFileDependencies(npmTree, npmTree);
 
   if (isSubtreeOf(npmTree, minInstalledTree) &&
       isSubtreeOf(minShrinkwrapTree, minInstalledTree)) {
@@ -685,6 +689,11 @@ var updateExistingNpmDirectory = async function (packageName, newPackageNpmDir,
   }
 
   if (! quiet) {
+    if (! _.isEmpty(minInstalledTree.dependencies)) {
+      runLog.rawLog(`\nDebug info for why meteor package npm dependecies were updated/re-installed: npmTree ${JSON.stringify(npmTree, null, 4)}` +
+        ` minInstalledTree ${JSON.stringify(minInstalledTree, null, 4)}` +
+        ` minShrinkwrapTree ${JSON.stringify(minShrinkwrapTree, null, 4)}\n\n`);
+    }
     logUpdateDependencies(packageName, npmDependencies);
   }
 
@@ -696,7 +705,7 @@ var updateExistingNpmDirectory = async function (packageName, newPackageNpmDir,
     // If there are no npmDependencies, make sure nothing is installed.
     preservedShrinkwrap = { dependencies: {} };
 
-  } else if (isSubtreeOf(npmTree, minShrinkwrapTree)) {
+  } else if (! npmTreeHadFileReference && isSubtreeOf(npmTree, minShrinkwrapTree)) {
     // If the top-level npm dependencies are already encompassed by the
     // npm-shrinkwrap.json file, then reuse that file.
     preservedShrinkwrap = shrinkwrappedDependenciesTree;
@@ -773,14 +782,25 @@ var updateExistingNpmDirectory = async function (packageName, newPackageNpmDir,
                        npmDependencies);
 };
 
+function hasFileReference(subsetTree) {
+  if (_.isObject(subsetTree)) {
+    return _.any(subsetTree, value => hasFileReference(value));
+  }
+
+  return subsetTree.startsWith("file:");
+}
+
 function isSubtreeOf(subsetTree, supersetTree, predicate) {
   if (subsetTree === supersetTree) {
     return true;
   }
 
   if (_.isObject(subsetTree)) {
-    return _.isObject(supersetTree) &&
-      _.every(subsetTree, (value, key) => {
+    if (! _.isObject(supersetTree)) {
+      runLog.rawLog(`\nMeteor package npm dependencies were different compared to latest (object): ${JSON.stringify(subsetTree, null, 4)} ${JSON.stringify(supersetTree, null, 4)}\n`);
+      return false;
+    }
+    return _.every(subsetTree, (value, key) => {
         return isSubtreeOf(value, supersetTree[key], predicate);
       });
   }
@@ -791,6 +811,8 @@ function isSubtreeOf(subsetTree, supersetTree, predicate) {
       return result;
     }
   }
+
+  runLog.rawLog(`\nMeteor package npm dependencies were different compared to latest (value): ${JSON.stringify(subsetTree, null, 4)} ${JSON.stringify(supersetTree, null, 4)}\n`);
 
   return false;
 }
@@ -1281,3 +1303,30 @@ var logUpdateDependencies = function (packageName, npmDependencies) {
   runLog.log(packageName + ': updating npm dependencies -- ' +
              Object.keys(npmDependencies).join(', ') + '...');
 };
+
+function removeFileDependencies(tree, npmTree) {
+  function removeInModule(module, moduleNpmTree) {
+    var newModule = { version: module.version };
+
+    if (module.dependencies) {
+      _.each(module.dependencies, function (subModule, name) {
+        subModuleNpmTree = moduleNpmTree?.dependencies?.[name];
+        if (subModuleNpmTree?.version.startsWith("file:"))
+          return;
+        if (!newModule.dependencies)
+          newModule.dependencies = {};
+        newModule.dependencies[name] = removeInModule(subModule, subModuleNpmTree);
+      });
+    }
+    return newModule;
+  }
+
+  var newTopLevelDependencies = {};
+  _.each(tree.dependencies, function (module, name) {
+    moduleNpmTree = npmTree?.dependencies?.[name];
+    if (moduleNpmTree?.version.startsWith("file:"))
+      return;
+    newTopLevelDependencies[name] = removeInModule(module, moduleNpmTree);
+  });
+  return { dependencies: newTopLevelDependencies };
+}

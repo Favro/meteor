@@ -104,6 +104,12 @@ Object.assign(RunLog.prototype, {
     }
   },
 
+  rawLog: function (msg) {
+    this._clearSpecial();
+
+    Console['rawInfo'](msg);
+  },
+
   // Log the message.
   //  msg: message
   //  options:
@@ -221,7 +227,7 @@ Object.assign(RunLog.prototype, {
 // object you get with require('./run-log.js').
 var runLogInstance = new RunLog;
 ['log', 'logTemporary', 'logRestart', 'logClientRestart', 'logAppOutput',
-  'setRawLogs', 'finish', 'clearLog', 'getLog'].forEach(
+  'setRawLogs', 'finish', 'clearLog', 'getLog', 'rawLog'].forEach(
   function (method) {
     exports[method] = runLogInstance[method].bind(runLogInstance);
   });
