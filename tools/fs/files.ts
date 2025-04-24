@@ -187,15 +187,15 @@ export const inCheckout = _.once(function () {
 });
 
 // True if we are using a warehouse: either installed Meteor, or if
-// $METEOR_WAREHOUSE_DIR is set. Otherwise false (we're in a git checkout and
+// $METEOR_USES_WAREHOUSE is set. Otherwise false (we're in a git checkout and
 // just using packages from the checkout).
 export function usesWarehouse() {
   // Test hook: act like we're "installed" using a non-homedir warehouse
   // directory.
-  if (process.env.METEOR_WAREHOUSE_DIR) {
+  if (process.env.METEOR_USES_WAREHOUSE) {
     return true;
   } else {
-    return ! inCheckout();
+    return !inCheckout();
   }
 }
 

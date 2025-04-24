@@ -357,6 +357,7 @@ export default class Sandbox {
     if (this.warehouse) {
       // Tell it where the warehouse lives.
       env.METEOR_WAREHOUSE_DIR = files.convertToOSPath(this.warehouse);
+      env.METEOR_USES_WAREHOUSE = true;
 
       // Don't ever try to refresh the stub catalog we made.
       env.METEOR_OFFLINE_CATALOG = "t";
