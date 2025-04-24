@@ -101,8 +101,14 @@ export function getLocalPackageCacheFilename(serverUrl) {
 
 export function getPackageStorage(options) {
   options = options || {};
-  var root = options.root || tropohouse.default.root;
-  return pathJoin(root, "package-metadata", "v2.0.1",
+
+  let packageMetadataDir;
+  if (process.env.METEOR_WAREHOUSE_METADATA_DIR)
+    packageMetadataDir = process.env.METEOR_WAREHOUSE_METADATA_DIR;
+  else
+    packageMetadataDir = pathJoin(options.root || tropohouse.default.root, "package-metadata");
+
+  return pathJoin(packageMetadataDir, "v2.0.1",
     getLocalPackageCacheFilename(options.serverUrl));
 }
 
