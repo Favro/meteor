@@ -107,7 +107,9 @@ export function getPackageStorage(options) {
 }
 
 export function getIsopacketRoot() {
-  if (inCheckout()) {
+  if (process.env.METEOR_WAREHOUSE_DIR)
+    return pathJoin(process.env.METEOR_WAREHOUSE_DIR, 'isopackets');
+  else if (inCheckout()) {
     return pathJoin(getCurrentToolsDir(), '.meteor', 'isopackets');
   } else {
     return pathJoin(getCurrentToolsDir(), 'isopackets');
