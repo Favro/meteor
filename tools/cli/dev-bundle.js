@@ -73,11 +73,16 @@ function getDevBundleForRelease(release) {
   var track = parts[0];
   var version = parts.slice(1).join("@");
 
-  var packageMetadataDir = find(
-    rootDir,
-    makeStatTest("isDirectory"),
-    ".meteor", "package-metadata"
-  );
+  var packageMetadataDir;
+  if (process.env.METEOR_WAREHOUSE_METADATA_DIR) {
+    packageMetadataDir = process.env.METEOR_WAREHOUSE_METADATA_DIR;
+  } else {
+    packageMetadataDir = find(
+      rootDir,
+      makeStatTest("isDirectory"),
+      ".meteor", "package-metadata"
+    );
+  }
 
   if (! packageMetadataDir) {
     return null;
