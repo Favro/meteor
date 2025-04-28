@@ -74,6 +74,7 @@ class Runner {
       listenHost: proxyHost,
       proxyToPort: self.appPort,
       proxyToHost: appHost,
+      proxyToSocket: process.env.UNIX_SOCKET_PATH,
       onFailure,
       ignoredUrls: [HMRPath]
     });
@@ -212,14 +213,7 @@ class Runner {
 
     if (! self.stopped && ! self.quiet) {
       runLog.log("");
-      if (process.env.UNIX_SOCKET_PATH) {
-        runLog.log(
-          `App running; UNIX domain socket: ${process.env.UNIX_SOCKET_PATH}`,
-          { arrow: true }
-        );
-      } else {
-        runLog.log("App running at: " + self.rootUrl,  { arrow: true });
-      }
+      runLog.log("App running at: " + self.rootUrl,  { arrow: true });
 
       if (process.platform === "win32") {
         runLog.log("   Type Control-C twice to stop.");
