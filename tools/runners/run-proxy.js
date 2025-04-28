@@ -11,6 +11,7 @@ var Proxy = function (options) {
   // note: run-all.js updates proxyToPort directly
   self.proxyToPort = options.proxyToPort;
   self.proxyToHost = options.proxyToHost || '127.0.0.1';
+  self.proxyToSocket = options.proxyToSocket;
   self.onFailure = options.onFailure || function () {};
   self.ignoredUrls = options.ignoredUrls || [];
 
@@ -124,7 +125,7 @@ Object.assign(Proxy.prototype, {
             'Content-Type': 'text/plain'
           });
         }
-        resOrSocket.end('Unexpected error.');
+        resOrSocket.end("Proxying error: " + err);
       } else if (resOrSocket instanceof net.Socket) {
         resOrSocket.end();
       }
@@ -202,6 +203,13 @@ Object.assign(Proxy.prototype, {
       }
     }
 
+    let requestOptions = {};
+    if (self.proxyToSocket) {
+      requestOptions.target = { socketPath: self.proxyToSocket };
+    } else {
+      requestOptions.target ='http://' + self.proxyToHost + ':' + self.proxyToPort;
+    }
+
     while (self.httpQueue.length) {
       if (self.mode !== "errorpage" && self.mode !== "proxy") {
         break;
@@ -211,9 +219,7 @@ Object.assign(Proxy.prototype, {
       if (self.mode === "errorpage") {
         showErrorPage(c.res);
       } else {
-        attempt(c.res, () => self.proxy.web(c.req, c.res, {
-          target: 'http://' + self.proxyToHost + ':' + self.proxyToPort
-        }));
+        attempt(c.res, () => self.proxy.web(c.req, c.res, requestOptions));
       }
     }
 
@@ -223,9 +229,7 @@ Object.assign(Proxy.prototype, {
       }
 
       var c = self.websocketQueue.shift();
-      attempt(c.socket, () => self.proxy.ws(c.req, c.socket, c.head, {
-        target: 'http://' + self.proxyToHost + ':' + self.proxyToPort
-      }));
+      attempt(c.socket, () => self.proxy.ws(c.req, c.socket, c.head, requestOptions));
     }
   },
 
