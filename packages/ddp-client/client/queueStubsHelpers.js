@@ -64,6 +64,7 @@ export const loadAsyncStubHelpers = () => {
   Connection.prototype.applyAsync = function () {
     let args = arguments;
     let name = args[0];
+    let options = args[2];
 
     if (currentMethodInvocation) {
       DDP._CurrentMethodInvocation._set(currentMethodInvocation);
@@ -73,6 +74,10 @@ export const loadAsyncStubHelpers = () => {
     const enclosing = DDP._CurrentMethodInvocation.get();
     const alreadyInSimulation = enclosing?.isSimulation;
     const isFromCallAsync = enclosing?._isFromCallAsync;
+
+    if (options.executeImmediately) {
+      return oldApplyAsync.apply(this, args);
+    }
 
     if (
       Meteor.connection._getIsSimulation({
