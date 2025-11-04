@@ -684,6 +684,7 @@ export class Connection {
    * @param {Object} [options]
    * @param {Boolean} options.wait (Client only) If true, don't send this method until all previous method calls have completed, and don't send any subsequent method calls until this one is completed.
    * @param {Boolean} options.sendImmediately (Client only) If true, always send the message to the server now, even if there are pending wait methods before.
+   * @param {Boolean} options.executeImmediately (Client only) If true, do not queue a macrotask for executing the stub, run immediately instead. When using this, ensure that no other code can run at the same time.
    * @param {Function} options.onResultReceived (Client only) This callback is invoked with the error or result of the method (just like `asyncCallback`) as soon as the error or result is available. The local cache may not yet reflect the writes performed by the method.
    * @param {Boolean} options.noRetry (Client only) if true, don't send this method again on reload, simply call the callback an error with the error code 'invocation-failed'.
    * @param {Boolean} options.throwStubExceptions (Client only) If true, exceptions thrown by method stubs will be thrown instead of logged, and the method will not be invoked on the server.
