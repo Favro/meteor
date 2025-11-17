@@ -28,6 +28,25 @@ import { isTestFilePath } from './test-files.js';
 
 const hasOwn = Object.prototype.hasOwnProperty;
 
+// Sorts extensions by priority to ensure code files are resolved before templates
+// and styles. This is important for cases like module.link("./foo") where both
+// foo.ts and foo.html exist - we want foo.ts to be resolved.
+function sortExtensionsByPriority(extensions) {
+  // Define the priority order: code files first, then json, then templates, then styles
+  const priority = ['.js', '.ts', '.tsx', '.jsx', '.mjs', '.json', '.html', '.css', '.less'];
+
+  return extensions.slice().sort((a, b) => {
+    let aIndex = priority.indexOf(a);
+    let bIndex = priority.indexOf(b);
+
+    // Extensions not in the priority list go to the end
+    if (aIndex === -1) aIndex = priority.length;
+    if (bIndex === -1) bIndex = priority.length;
+
+    return aIndex - bIndex;
+  });
+}
+
 // This file implements the new compiler plugins added in Meteor 1.2, which are
 // registered with the Plugin.registerCompiler API.
 //
@@ -1125,7 +1144,7 @@ export class PackageSourceBatch {
     // These are the options that should be passed as the second argument
     // to meteorInstall when modules in this source batch are installed.
     self.meteorInstallOptions = self.useMeteorInstall ? {
-      extensions: self.importExtensions,
+      extensions: sortExtensionsByPriority(self.importExtensions),
     } : null;
   }
 
