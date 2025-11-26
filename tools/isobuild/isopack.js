@@ -1609,6 +1609,30 @@ Object.assign(Isopack.prototype, {
 
   displayName() {
     return this.name === null ? 'the app' : this.name;
+  },
+
+  // Dispose of all plugin instances, calling their dispose() method if present.
+  // This should be called before replacing an isopack with a new one to allow
+  // plugins to clean up resources (e.g., file watchers, caches).
+  disposePlugins() {
+    if (!this._pluginsInitialized) {
+      return;
+    }
+    _.each(this.sourceProcessors, (sourceProcessorSet) => {
+      if (sourceProcessorSet && sourceProcessorSet.allSourceProcessors) {
+        _.each(sourceProcessorSet.allSourceProcessors, (sourceProcessor) => {
+          if (sourceProcessor.userPlugin &&
+              typeof sourceProcessor.userPlugin.dispose === 'function') {
+            try {
+              sourceProcessor.userPlugin.dispose();
+            } catch (e) {
+              // Log but don't fail the build if dispose throws
+              Console.warn("Error disposing plugin: " + e.message);
+            }
+          }
+        });
+      }
+    });
   }
 });
 
