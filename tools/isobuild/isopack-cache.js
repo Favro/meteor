@@ -316,6 +316,12 @@ export class IsopackCache {
         // We don't need to call self._lintLocalPackage here, because
         // lintingMessages is saved on the isopack.
       } else {
+        // Dispose old plugins before creating new ones to allow cleanup
+        // of resources like file watchers and caches
+        if (previousIsopack) {
+          previousIsopack.disposePlugins();
+        }
+
         var pluginCacheDir;
         if (self._pluginCacheDirRoot) {
           pluginCacheDir = self._pluginCacheDirForLocal(name);
