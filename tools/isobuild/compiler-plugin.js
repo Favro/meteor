@@ -1412,7 +1412,7 @@ export class PackageSourceBatch {
       const scanner = new ImportScanner({
         name,
         bundleArch: batch.processor.arch,
-        extensions: batch.importExtensions,
+        extensions: sortExtensionsByPriority(batch.importExtensions),
         sourceRoot: batch.sourceRoot,
         nodeModulesPaths,
         watchSet: entry.importScannerWatchSet,
