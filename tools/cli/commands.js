@@ -33,6 +33,12 @@ import { iOSRunTarget, AndroidRunTarget } from '../cordova/run-targets.js';
 
 import { EXAMPLE_REPOSITORIES } from './example-repositories.js';
 
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+	console.log("[UnitTestDiag] commands module load", {
+		nodeEnv: process.env.NODE_ENV || "undefined"
+	});
+}
+
 // The architecture used by Meteor Software's hosted servers; it's the
 // architecture used by 'meteor deploy'.
 var DEPLOY_ARCH = 'os.linux.x86_64';
@@ -1883,6 +1889,12 @@ function doTestCommand(options) {
   // process, this should be safe.
   global.testCommandMetadata = {};
 
+  if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+    console.log("[UnitTestDiag] commands doTestCommand start", {
+      nodeEnv: process.env.NODE_ENV || "undefined"
+    });
+  }
+
   Console.setVerbose(!!options.verbose);
   if (options.headless) {
     Console.setHeadless(true);
@@ -2222,6 +2234,13 @@ var runTestAppForPackages = function (projectContext, options) {
       recordPackageUsage: false
     });
   } else {
+    if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+      console.log("[UnitTestDiag] commands runTestAppForPackages pre-require run-all", {
+        nodeEnv: process.env.NODE_ENV || "undefined",
+        buildMode: buildOptions.buildMode || "undefined",
+        minifyMode: buildOptions.minifyMode || "undefined"
+      });
+    }
     var runAll = require('../runners/run-all.js');
     return runAll.run({
       projectContext: projectContext,

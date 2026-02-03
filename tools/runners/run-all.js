@@ -16,6 +16,12 @@ const MongoRunner = require('./run-mongo.js').MongoRunner;
 const HMRServer = require('./run-hmr').HMRServer;
 const Updater = require('./run-updater').Updater;
 
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] run-all module load", {
+    nodeEnv: process.env.NODE_ENV || "undefined"
+  });
+}
+
 class Runner {
   constructor({
     appHost,
@@ -368,6 +374,19 @@ exports.run = function (options) {
   runOptions.watchForChanges = ! once;
   runOptions.quiet = false;
 
+  const shouldLogUnitTestDiag = process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1";
+  if (shouldLogUnitTestDiag) {
+    const buildOptions = runOptions.buildOptions || {};
+    console.log("[UnitTestDiag] run-all pre", {
+      nodeEnv: process.env.NODE_ENV || "undefined",
+      buildMode: buildOptions.buildMode || "undefined",
+      minifyMode: buildOptions.minifyMode || "undefined",
+      isTest: runOptions.testMetadata && runOptions.testMetadata.isTest ? true : false,
+      isAppTest: runOptions.testMetadata && runOptions.testMetadata.isAppTest ? true : false,
+      testMetadata: runOptions.testMetadata || null
+    });
+  }
+
   // Ensure process.env.NODE_ENV matches the build mode, with the following precedence:
   // 1. Passed in build mode (if development or production)
   // 2. Existing process.env.NODE_ENV (if it's valid)
@@ -395,6 +414,15 @@ exports.run = function (options) {
 
   if (!nodeEnv) {
     process.env.NODE_ENV = "development";
+  }
+
+  if (shouldLogUnitTestDiag) {
+    const buildOptions = runOptions.buildOptions || {};
+    console.log("[UnitTestDiag] run-all post", {
+      nodeEnv: process.env.NODE_ENV || "undefined",
+      buildMode: buildOptions.buildMode || "undefined",
+      minifyMode: buildOptions.minifyMode || "undefined"
+    });
   }
 
   var runner = new Runner(runOptions);

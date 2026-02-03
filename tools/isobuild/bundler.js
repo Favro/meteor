@@ -2268,6 +2268,7 @@ class JsImage {
       }
 
       try {
+        var unitTestNodeEnvBefore = process.env.NODE_ENV;
         // XXX XXX Get the actual source file path -- item.targetPath
         // is not actually correct (it's the path in the bundle rather
         // than in the source tree).
@@ -2277,6 +2278,15 @@ class JsImage {
           sourceMap: item.sourceMap,
           sourceMapRoot: item.sourceMapRoot
         });
+        if ((process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") &&
+            process.env.NODE_ENV !== unitTestNodeEnvBefore) {
+          console.log("[UnitTestDiag] JsImage.load nodeEnv changed", {
+            targetPath: item.targetPath,
+            prev: unitTestNodeEnvBefore || "undefined",
+            next: process.env.NODE_ENV || "undefined",
+            stack: new Error().stack
+          });
+        }
       } catch (e) {
         buildmessage.exception(e);
         // Recover by skipping the rest of the load
@@ -3565,6 +3575,12 @@ function lintBundle (projectContext, isopack, packageSource) {
 // namespace." It should be an easy refactor,
 exports.buildJsImage = Profile("bundler.buildJsImage", function (options) {
   buildmessage.assertInCapture();
+  if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+    console.log("[UnitTestDiag] bundler buildJsImage start", {
+      nodeEnv: process.env.NODE_ENV || "undefined",
+      name: options.name || "undefined"
+    });
+  }
   if (options.npmDependencies && ! options.npmDir) {
     throw new Error("Must indicate .npm directory to use");
   }
@@ -3607,6 +3623,12 @@ exports.buildJsImage = Profile("bundler.buildJsImage", function (options) {
   });
   target.make({ packages: [isopack] });
 
+  if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+    console.log("[UnitTestDiag] bundler buildJsImage done", {
+      nodeEnv: process.env.NODE_ENV || "undefined",
+      name: options.name || "undefined"
+    });
+  }
   return {
     image: target.toJsImage(),
     watchSet: target.getWatchSet(),

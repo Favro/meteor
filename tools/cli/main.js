@@ -3,6 +3,14 @@ if (showRequireProfile) {
   require('../tool-env/profile-require.js').start();
 }
 
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] cli/main entry", {
+    nodeEnv: process.env.NODE_ENV || "undefined",
+    babelEnv: process.env.BABEL_ENV || "undefined",
+    meteorProfile: process.env.METEOR_PROFILE || "undefined"
+  });
+}
+
 var assert = require("assert");
 var _ = require('underscore');
 var Fiber = require('fibers');
@@ -293,11 +301,41 @@ main.captureAndExit = function (header, title, f) {
 
 // NB: files required up to this point may not define commands
 
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] cli/main before commands require", {
+    nodeEnv: process.env.NODE_ENV || "undefined"
+  });
+}
 require('./commands.js');
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] cli/main after commands.js", {
+    nodeEnv: process.env.NODE_ENV || "undefined"
+  });
+}
 require('./commands-packages.js');
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] cli/main after commands-packages.js", {
+    nodeEnv: process.env.NODE_ENV || "undefined"
+  });
+}
 require('./commands-packages-query.js');
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] cli/main after commands-packages-query.js", {
+    nodeEnv: process.env.NODE_ENV || "undefined"
+  });
+}
 require('./commands-cordova.js');
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] cli/main after commands-cordova.js", {
+    nodeEnv: process.env.NODE_ENV || "undefined"
+  });
+}
 require('./commands-aliases.js');
+if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+  console.log("[UnitTestDiag] cli/main after commands-aliases.js", {
+    nodeEnv: process.env.NODE_ENV || "undefined"
+  });
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Record all the top-level commands as JSON
@@ -712,9 +750,16 @@ Fiber(function () {
   });
 
   // Now parse!
+  const shouldLogUnitTestDiag = process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1";
+  if (shouldLogUnitTestDiag) {
+    console.log("[UnitTestDiag] cli/main before argv parse", {
+      nodeEnv: process.env.NODE_ENV || "undefined"
+    });
+  }
   var argv = process.argv.slice(2);
   var rawOptions = {}; // map from '--foo' or '-f' to array of values
   var rawArgs = [];
+  var unitTestNodeEnv = process.env.NODE_ENV;
   for (var i = 0; i < argv.length; i++) {
     var term = argv[i];
 
@@ -823,6 +868,23 @@ Fiber(function () {
 
     // It is a plain old argument!
     rawArgs.push(term);
+
+    if (shouldLogUnitTestDiag && process.env.NODE_ENV !== unitTestNodeEnv) {
+      console.log("[UnitTestDiag] cli/main nodeEnv changed during argv parse", {
+        prev: unitTestNodeEnv || "undefined",
+        next: process.env.NODE_ENV || "undefined",
+        term: term || "unknown"
+      });
+      unitTestNodeEnv = process.env.NODE_ENV;
+    }
+  }
+
+  if (shouldLogUnitTestDiag && process.env.NODE_ENV !== unitTestNodeEnv) {
+    console.log("[UnitTestDiag] cli/main nodeEnv changed after argv parse", {
+      prev: unitTestNodeEnv || "undefined",
+      next: process.env.NODE_ENV || "undefined"
+    });
+    unitTestNodeEnv = process.env.NODE_ENV;
   }
 
   if (_.has(rawOptions, "--allow-superuser") ||
@@ -830,6 +892,14 @@ Fiber(function () {
     process.env.METEOR_ALLOW_SUPERUSER = "true";
     delete rawOptions["--allow-superuser"];
     delete rawOptions["--unsafe-perm"];
+  }
+
+  if (shouldLogUnitTestDiag && process.env.NODE_ENV !== unitTestNodeEnv) {
+    console.log("[UnitTestDiag] cli/main nodeEnv changed after allow-superuser", {
+      prev: unitTestNodeEnv || "undefined",
+      next: process.env.NODE_ENV || "undefined"
+    });
+    unitTestNodeEnv = process.env.NODE_ENV;
   }
 
   // Prevent running meteor as root on UNIX platforms.
@@ -873,7 +943,35 @@ Fiber(function () {
     appDir = files.pathResolve(appDir);
   }
 
-  require('../tool-env/isopackets.js').ensureIsopacketsLoadable();
+  if (shouldLogUnitTestDiag && process.env.NODE_ENV !== unitTestNodeEnv) {
+    console.log("[UnitTestDiag] cli/main nodeEnv changed after findAppDir", {
+      prev: unitTestNodeEnv || "undefined",
+      next: process.env.NODE_ENV || "undefined",
+      appDir: appDir || "undefined"
+    });
+    unitTestNodeEnv = process.env.NODE_ENV;
+  }
+
+  if (shouldLogUnitTestDiag) {
+    console.log("[UnitTestDiag] cli/main before require isopackets", {
+      nodeEnv: process.env.NODE_ENV || "undefined"
+    });
+  }
+  var isopackets = require('../tool-env/isopackets.js');
+  if (shouldLogUnitTestDiag) {
+    console.log("[UnitTestDiag] cli/main after require isopackets", {
+      nodeEnv: process.env.NODE_ENV || "undefined"
+    });
+  }
+  isopackets.ensureIsopacketsLoadable();
+
+  if (shouldLogUnitTestDiag && process.env.NODE_ENV !== unitTestNodeEnv) {
+    console.log("[UnitTestDiag] cli/main nodeEnv changed after ensureIsopacketsLoadable", {
+      prev: unitTestNodeEnv || "undefined",
+      next: process.env.NODE_ENV || "undefined"
+    });
+    unitTestNodeEnv = process.env.NODE_ENV;
+  }
 
   // Initialize the server catalog. Among other things, this is where we get
   // release information (used by springboarding). We do not at this point talk
@@ -881,6 +979,14 @@ Fiber(function () {
   catalog.official.initialize({
     offline: !!process.env.METEOR_OFFLINE_CATALOG
   });
+
+  if (shouldLogUnitTestDiag && process.env.NODE_ENV !== unitTestNodeEnv) {
+    console.log("[UnitTestDiag] cli/main nodeEnv changed after catalog init", {
+      prev: unitTestNodeEnv || "undefined",
+      next: process.env.NODE_ENV || "undefined"
+    });
+    unitTestNodeEnv = process.env.NODE_ENV;
+  }
 
   // Now before we do anything else, figure out the release to use,
   // and if that release goes with a different version of the tools,
@@ -1419,6 +1525,12 @@ Fiber(function () {
   // We know we have a valid command and options. Now check to see if
   // the command can only be run from an app dir, and add the appDir
   // option if running from an app.
+  if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+    console.log("[UnitTestDiag] cli/main after options parse", {
+      nodeEnv: process.env.NODE_ENV || "undefined",
+      commandName: commandName || "unknown"
+    });
+  }
   var requiresApp = command.evaluateOption('requiresApp', options);
 
   if (appDir) {
@@ -1523,10 +1635,21 @@ Fiber(function () {
   try {
     // Before run, do a package sync if one is configured
     var catalogRefreshStrategy = command.catalogRefresh;
+    if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+      console.log("[UnitTestDiag] cli/main before catalog refresh", {
+        nodeEnv: process.env.NODE_ENV || "undefined"
+      });
+    }
     if (! catalog.triedToRefreshRecently &&
         catalogRefreshStrategy.beforeCommand) {
       buildmessage.enterJob({title: 'updating package catalog'}, function () {
         catalogRefreshStrategy.beforeCommand();
+      });
+    }
+    if (process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1") {
+      console.log("[UnitTestDiag] cli/main before command func", {
+        nodeEnv: process.env.NODE_ENV || "undefined",
+        commandName: commandName || "unknown"
       });
     }
 

@@ -9,6 +9,24 @@ var colonConverter = require('../utils/colon-converter.js');
 var Profile = require('../tool-env/profile').Profile;
 import { requestGarbageCollection } from "../utils/gc.js";
 
+var logUnitTestNodeEnvChange = function (label, packageName, prevNodeEnv) {
+  var shouldLogUnitTestDiag = process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1";
+  if (!shouldLogUnitTestDiag) {
+    return;
+  }
+
+  var nextNodeEnv = process.env.NODE_ENV;
+  if (prevNodeEnv !== nextNodeEnv) {
+    console.log("[UnitTestDiag] isopack-cache nodeEnv changed", {
+      label: label,
+      packageName: packageName,
+      prev: prevNodeEnv || "undefined",
+      next: nextNodeEnv || "undefined",
+      stack: new Error().stack
+    });
+  }
+};
+
 export class IsopackCache {
   constructor(options) {
     var self = this;
@@ -306,6 +324,7 @@ export class IsopackCache {
     var self = this;
     buildmessage.assertInCapture();
     buildmessage.enterJob("building package " + name, function () {
+      var nodeEnvBefore = process.env.NODE_ENV;
       var isopack;
       if (previousIsopack && self._checkUpToDatePreloaded(previousIsopack)) {
         isopack = previousIsopack;
@@ -386,6 +405,7 @@ export class IsopackCache {
 
       self.allLoadedLocalPackagesWatchSet.merge(isopack.getMergedWatchSet());
       self._isopacks[name] = isopack;
+      logUnitTestNodeEnvChange("after _loadLocalPackage", name, nodeEnvBefore);
     });
   }
 

@@ -20,6 +20,25 @@ var Profile = require('../tool-env/profile').Profile;
 import { requestGarbageCollection } from "../utils/gc.js";
 import { Unibuild } from "./unibuild.js";
 
+var logUnitTestNodeEnvChange = function (label, packageName, pluginName, prevNodeEnv) {
+  var shouldLogUnitTestDiag = process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1";
+  if (!shouldLogUnitTestDiag) {
+    return;
+  }
+
+  var nextNodeEnv = process.env.NODE_ENV;
+  if (prevNodeEnv !== nextNodeEnv) {
+    console.log("[UnitTestDiag] isopack plugin nodeEnv changed", {
+      label: label,
+      packageName: packageName || "unknown",
+      pluginName: pluginName || "unknown",
+      prev: prevNodeEnv || "undefined",
+      next: nextNodeEnv || "undefined",
+      stack: new Error().stack
+    });
+  }
+};
+
 var rejectBadPath = function (p) {
   if (p.match(/\.\./)) {
     throw new Error("bad path: " + p);
@@ -473,7 +492,9 @@ Object.assign(Isopack.prototype, {
       }, function () {
         // Make a new Plugin API object for this plugin.
         var Plugin = self._makePluginApi(name);
+        var nodeEnvBeforeLoad = process.env.NODE_ENV;
         plugin.load({ Plugin: Plugin, Profile: Profile });
+        logUnitTestNodeEnvChange("after plugin.load", self.name, name, nodeEnvBeforeLoad);
       });
     });
 
@@ -485,7 +506,14 @@ Object.assign(Isopack.prototype, {
     // and so we want to wait for C to be defined.
     _.each(self.sourceProcessors, (sourceProcessorSet) => {
       _.each(sourceProcessorSet.allSourceProcessors, (sourceProcessor) => {
+        var nodeEnvBeforeInstantiate = process.env.NODE_ENV;
         sourceProcessor.instantiatePlugin();
+        logUnitTestNodeEnvChange(
+          "after instantiatePlugin",
+          self.name,
+          sourceProcessor.isopack && sourceProcessor.isopack.name,
+          nodeEnvBeforeInstantiate
+        );
       });
     });
 

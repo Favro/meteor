@@ -88,6 +88,31 @@ export const ISOPACKETS = {
 // the tool itself.
 var loadedIsopackets = {};
 
+var unitTestLastNodeEnv = process.env.NODE_ENV;
+var logUnitTestNodeEnv = function (label) {
+  var shouldLogUnitTestDiag = process.env.X_UNIT_TESTS === "true" || process.env.X_UNIT_TESTS === "1";
+  if (!shouldLogUnitTestDiag) {
+    return;
+  }
+
+  var nodeEnv = process.env.NODE_ENV;
+  if (nodeEnv !== unitTestLastNodeEnv) {
+    console.log("[UnitTestDiag] isopackets nodeEnv changed", {
+      label: label,
+      prev: unitTestLastNodeEnv || "undefined",
+      next: nodeEnv || "undefined",
+      stack: new Error().stack
+    });
+    unitTestLastNodeEnv = nodeEnv;
+    return;
+  }
+
+  console.log("[UnitTestDiag] isopackets nodeEnv", {
+    label: label,
+    nodeEnv: nodeEnv || "undefined"
+  });
+};
+
 // The main entry point: loads the specified isopacket ("combined" by
 // default) from cache or from disk, and returns the requested package
 // dependency, complaining if the package does not exist. Note that
@@ -135,6 +160,7 @@ var isopacketPath = function (isopacketName) {
 // exist on disk as up-to-date loadable programs.
 var calledEnsure = false;
 export function ensureIsopacketsLoadable() {
+  logUnitTestNodeEnv("ensure start");
   if (calledEnsure) {
     throw Error("can't ensureIsopacketsLoadable twice!");
   }
@@ -142,12 +168,15 @@ export function ensureIsopacketsLoadable() {
 
   // If we're not running from checkout, then there's nothing to build and we
   // can declare that all isopackets are loadable.
+  logUnitTestNodeEnv("ensure before inCheckout");
   if (!files.inCheckout()) {
+    logUnitTestNodeEnv("ensure inCheckout false");
     _.each(ISOPACKETS, function (packages, name) {
       loadedIsopackets[name] = null;
     });
     return;
   }
+  logUnitTestNodeEnv("ensure inCheckout true");
 
   // We make this object lazily later.
   var isopacketBuildContext = null;
@@ -155,6 +184,7 @@ export function ensureIsopacketsLoadable() {
   var failedPackageBuild = false;
   // Look at each isopacket. Check to see if it's on disk and up to date. If
   // not, build it. We rebuild them in the order listed in ISOPACKETS.
+  logUnitTestNodeEnv("ensure before buildmessage capture");
   var messages = Console.withProgressDisplayVisible(function () {
     return buildmessage.capture(function () {
       _.each(ISOPACKETS, function (packages, isopacketName) {
@@ -184,25 +214,31 @@ export function ensureIsopacketsLoadable() {
         // We're going to need to build! Make a catalog and loader if we haven't
         // yet.
         if (!isopacketBuildContext) {
+          logUnitTestNodeEnv("ensure before makeIsopacketBuildContext");
           isopacketBuildContext = makeIsopacketBuildContext();
+          logUnitTestNodeEnv("ensure after makeIsopacketBuildContext");
         }
 
         buildmessage.enterJob({
           title: "bundling " + isopacketName + " packages for the tool"
         }, function () {
           // Build the packages into the in-memory IsopackCache.
+          logUnitTestNodeEnv("ensure before buildLocalPackages");
           isopacketBuildContext.isopackCache.buildLocalPackages(packages);
+          logUnitTestNodeEnv("ensure after buildLocalPackages");
           if (buildmessage.jobHasMessages()) {
             return;
           }
 
           // Now bundle them into a program.
+          logUnitTestNodeEnv("ensure before buildJsImage");
           var built = bundler.buildJsImage({
             name: "isopacket-" + isopacketName,
             packageMap: isopacketBuildContext.packageMap,
             isopackCache: isopacketBuildContext.isopackCache,
             use: packages
           });
+          logUnitTestNodeEnv("ensure after buildJsImage");
           if (buildmessage.jobHasMessages()) {
             return;
           }
@@ -214,12 +250,14 @@ export function ensureIsopacketsLoadable() {
           });
           built.image.write(builder);
           builder.complete();
+          logUnitTestNodeEnv("ensure after builder complete");
           // It's loadable now.
           loadedIsopackets[isopacketName] = null;
         });
       });
     });
   });
+  logUnitTestNodeEnv("ensure after buildmessage capture");
 
   // This is a build step ... but it's one that only happens in development, so
   // it can just crash the app instead of being handled nicely.
@@ -232,12 +270,16 @@ export function ensureIsopacketsLoadable() {
 
 // Returns a new all-local-packages catalog to be used for building isopackets.
 export function newIsopacketBuildingCatalog() {
+  logUnitTestNodeEnv("newIsopacketBuildingCatalog start");
   if (!files.inCheckout()) {
     throw Error("No need to build isopackets unless in checkout!");
   }
 
+  logUnitTestNodeEnv("newIsopacketBuildingCatalog before require catalog-local");
   var catalogLocal = require('../packaging/catalog/catalog-local.js');
+  logUnitTestNodeEnv("newIsopacketBuildingCatalog after require catalog-local");
   var isopacketCatalog = new catalogLocal.LocalCatalog;
+  logUnitTestNodeEnv("newIsopacketBuildingCatalog after new LocalCatalog");
   var messages = buildmessage.capture(
     { title: "scanning local core packages" },
     function () {
@@ -262,21 +304,28 @@ export function newIsopacketBuildingCatalog() {
     Console.printMessages(messages);
     throw new Error("isopacket scan failed?");
   }
+  logUnitTestNodeEnv("newIsopacketBuildingCatalog done");
   return isopacketCatalog;
 };
 
 export function makeIsopacketBuildContext() {
+  logUnitTestNodeEnv("makeIsopacketBuildContext start");
   var context = {};
+  logUnitTestNodeEnv("makeIsopacketBuildContext before newIsopacketBuildingCatalog");
   var catalog = newIsopacketBuildingCatalog();
+  logUnitTestNodeEnv("makeIsopacketBuildContext after newIsopacketBuildingCatalog");
   var versions = {};
   _.each(catalog.getAllPackageNames(), function (packageName) {
     versions[packageName] = catalog.getLatestVersion(packageName).version;
   });
+  logUnitTestNodeEnv("makeIsopacketBuildContext before PackageMap");
   context.packageMap = new packageMapModule.PackageMap(versions, {
     localCatalog: catalog
   });
+  logUnitTestNodeEnv("makeIsopacketBuildContext after PackageMap");
   // Make an isopack cache that doesn't save isopacks to disk and has no
   // access to versioned packages.
+  logUnitTestNodeEnv("makeIsopacketBuildContext before IsopackCache");
   context.isopackCache = new isopackCacheModule.IsopackCache({
     packageMap: context.packageMap,
     includeCordovaUnibuild: false,
@@ -287,14 +336,17 @@ export function makeIsopacketBuildContext() {
     // loading constraint-solver).
     noLineNumbers: true
   });
+  logUnitTestNodeEnv("makeIsopacketBuildContext after IsopackCache");
   return context;
 }
 
 // Loads a built isopacket from disk. Always loads (the cache is in 'load', not
 // this function). Does not run a build process; it must already be built.
 var loadIsopacketFromDisk = function (isopacketName) {
+  logUnitTestNodeEnv("loadIsopacketFromDisk before readJsImage");
   var image = bundler.readJsImage(
     files.pathJoin(isopacketPath(isopacketName), 'program.json'));
+  logUnitTestNodeEnv("loadIsopacketFromDisk after readJsImage");
 
   // An incredibly minimalist version of the environment from
   // tools/server/boot.js.  Kind of a hack.
@@ -308,7 +360,9 @@ var loadIsopacketFromDisk = function (isopacketName) {
   var messages = buildmessage.capture({
     title: "loading isopacket `" + isopacketName + "`"
   }, function () {
+    logUnitTestNodeEnv("loadIsopacketFromDisk before image.load");
     ret = image.load(env);
+    logUnitTestNodeEnv("loadIsopacketFromDisk after image.load");
   });
 
   // This is a build step ... but it's one that only happens in development, so
@@ -327,5 +381,6 @@ var loadIsopacketFromDisk = function (isopacketName) {
   // Setting this to null tells Meteor.startup to call hooks immediately.
   env.__meteor_bootstrap__.startupHooks = null;
 
+  logUnitTestNodeEnv("loadIsopacketFromDisk done");
   return ret;
 };
