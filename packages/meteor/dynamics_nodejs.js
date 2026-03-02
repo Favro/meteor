@@ -174,6 +174,10 @@ Meteor.bindEnvironment = function (func, onException, _this) {
         // function at the same time
         Fiber.current._meteor_dynamics = boundValues.slice();
         var ret = func.apply(_this, args);
+
+        if (Meteor._isPromise(ret)) {
+          ret = ret.catch(onException);
+        }
       } catch (e) {
         // note: callback-hook currently relies on the fact that if onException
         // throws and you were originally calling the wrapped callback from
