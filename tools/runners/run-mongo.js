@@ -51,11 +51,6 @@ function spawnMongod(mongodPath, port, dbPath, replSetName) {
     args.push('--storageEngine', 'mmapv1', '--smallfiles');
   }
 
-  // run with rosetta on mac m1
-  if (process.platform === 'darwin' && process.arch === 'arm64') {
-    args = ['-x86_64', mongodPath, ...args];
-    mongodPath = 'arch';
-  }
   return child_process.spawn(mongodPath, args, {
     // Apparently in some contexts, Mongo crashes if your locale isn't set up
     // right. I wasn't able to reproduce it, but many people on #4019
