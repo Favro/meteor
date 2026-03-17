@@ -92,13 +92,44 @@ export default class Cursor {
   }
 
   [Symbol.iterator]() {
+    if (this.reactive && Tracker.active) {
+      const elements = [];
+
+      this._depend({
+        addedBefore: true,
+        removed: true,
+        changed: true,
+        movedBefore: true,
+      }, false, element => {
+        if (this._transform)
+          element = this._transform(element);
+
+        elements.push(element);
+      });
+
+      let index = 0;
+
+      return {
+        next: () => {
+          if (index < elements.length)
+            return { value: elements[index++] };
+
+          return { done: true };
+        },
+      };
+    }
+
     let index = 0;
-    const elements = this.fetch();
+    const objects = this._getRawObjects({ ordered: true });
 
     return {
       next: () => {
-        if (index < elements.length) {
-          let element = elements[index++];
+        if (index < objects.length) {
+          // This doubles as a clone operation.
+          let element = this._projectionFn(objects[index++]);
+
+          if (this._transform) element = this._transform(element);
+
           return { value: element };
         }
 
@@ -136,33 +167,11 @@ export default class Cursor {
    *                        `callback`.
    */
   forEach(callback, thisArg) {
-    if (this.reactive && Tracker.active) {
-      let i = 0;
+    let i = 0;
 
-      this._depend({
-        addedBefore: true,
-        removed: true,
-        changed: true,
-        movedBefore: true,
-      }, false, element => {
-        if (this._transform)
-          element = this._transform(element);
-
-        callback.call(thisArg, element, i++, this);
-      });
-
-      return;
+    for (const doc of this) {
+      callback.call(thisArg, doc, i++, this);
     }
-
-    this._getRawObjects({ ordered: true }).forEach((element, i) => {
-      // This doubles as a clone operation.
-      element = this._projectionFn(element);
-
-      if (this._transform)
-        element = this._transform(element);
-
-      callback.call(thisArg, element, i, this);
-    });
   }
 
   /**
