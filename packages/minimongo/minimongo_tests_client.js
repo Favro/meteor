@@ -4052,6 +4052,24 @@ Tinytest.addAsync('minimongo - asyncIterator', async (test) => {
   test.equal(itemIds, ['a', 'b']);
 });
 
+Tinytest.addAsync('minimongo - forEachAsync and mapAsync', async test => {
+  const collection = new LocalCollection();
+  collection.insert({ _id: 'a' });
+  collection.insert({ _id: 'b' });
+
+  // Test that callbacks are awaited sequentially
+  const result = [];
+  result.push('before');
+  await collection.find({}, { sort: { _id: 1 } }).forEachAsync(async doc => {
+    result.push(doc._id + '1');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    result.push(doc._id + '2');
+  });
+  result.push('after');
+
+  test.equal(result, ['before', 'a1', 'a2', 'b1', 'b2', 'after']);
+});
+
 Tinytest.add('minimongo - operation result fields (sync)', test => {
   const c = new LocalCollection();
 
