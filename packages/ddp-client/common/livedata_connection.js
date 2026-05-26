@@ -316,6 +316,7 @@ export class Connection {
     // Expose document processor methods to maintain backward compatibility
     this._process_added = (msg, updates) => this._documentProcessors._process_added(msg, updates);
     this._process_changed = (msg, updates) => this._documentProcessors._process_changed(msg, updates);
+    this._process_replace = (msg, updates) => this._documentProcessors._process_replace(msg, updates);
     this._process_removed = (msg, updates) => this._documentProcessors._process_removed(msg, updates);
     this._process_ready = (msg, updates) => this._documentProcessors._process_ready(msg, updates);
     this._process_updated = (msg, updates) => this._documentProcessors._process_updated(msg, updates);

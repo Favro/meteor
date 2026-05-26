@@ -19,6 +19,12 @@ var releaseReadyHold = function () {
   maybeReady();
 }
 
+var insideStartupHookCount = 0;
+
+Meteor._isInsideStartupHook = function () {
+  return insideStartupHookCount > 0;
+};
+
 var maybeReady = function () {
   if (isReady || !eagerCodeRan || readyHoldsCount > 0 || window.meteorExtraReadyHolds > 0)
     return;
@@ -26,8 +32,15 @@ var maybeReady = function () {
   isReady = true;
 
   // Run startup callbacks
-  while (callbackQueue.length)
-    (callbackQueue.shift())();
+  while (callbackQueue.length) {
+    var cb = callbackQueue.shift();
+    try {
+      insideStartupHookCount++;
+      cb();
+    } finally {
+      insideStartupHookCount--;
+    }
+  }
 
   if (Meteor.isCordova) {
     // Notify the WebAppLocalServer plugin that startup was completed successfully,
@@ -93,6 +106,15 @@ Meteor.maybeReady = maybeReady;
  * @locus Anywhere
  * @param {Function} func A function to run on startup.
  */
+var invokeStartupCallback = function (callback) {
+  try {
+    insideStartupHookCount++;
+    callback();
+  } finally {
+    insideStartupHookCount--;
+  }
+};
+
 Meteor.startup = function (callback) {
   // Fix for < IE9, see http://javascript.nwbox.com/IEContentLoaded/
   var doScroll = !document.addEventListener &&
@@ -100,7 +122,7 @@ Meteor.startup = function (callback) {
 
   if (!doScroll || window !== top) {
     if (isReady)
-      callback();
+      invokeStartupCallback(callback);
     else
       callbackQueue.push(callback);
   } else {
@@ -109,6 +131,6 @@ Meteor.startup = function (callback) {
       setTimeout(function () { Meteor.startup(callback); }, 50);
       return;
     };
-    callback();
+    invokeStartupCallback(callback);
   }
 };
