@@ -1,9 +1,7 @@
-var Fiber = Npm.require('fibers');
-
-var insideStartupHookSymbol = Symbol("_meteorInsideStartupHook");
+var insideStartupHookKey = "_meteorInsideStartupHook";
 
 Meteor._isInsideStartupHook = function () {
-  return !!Fiber.current[insideStartupHookSymbol];
+  return !!Meteor._getValueFromAslStore(insideStartupHookKey);
 };
 
 Meteor.startup = function startup(callback) {
@@ -27,12 +25,10 @@ Meteor.startup = function startup(callback) {
   if (bootstrap &&
       bootstrap.startupHooks) {
     bootstrap.startupHooks.push(function () {
-      try {
-        Fiber.current[insideStartupHookSymbol] = true;
-        callback();
-      } finally {
-        delete Fiber.current[insideStartupHookSymbol];
-      }
+      var existingStore = Meteor._getAslStore() || {};
+      var newStore = Object.assign({}, existingStore);
+      newStore[insideStartupHookKey] = true;
+      return Meteor._getAsl().run(newStore, callback);
     });
   } else {
     // We already started up. Just call it now.

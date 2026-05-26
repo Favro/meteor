@@ -137,6 +137,19 @@ export const Match = {
       () => f.apply(context, args)
     );
 
+    // If f is async, defer the audit until the returned promise settles so
+    // that check() calls made inside the async body have a chance to run and
+    // so that a rejection from f wins over the "didn't check" complaint. If
+    // we audited synchronously here, an async handler that throws before
+    // calling check() would surface both the original rejection (unhandled)
+    // and a spurious audit error.
+    if (result && typeof result.then === 'function') {
+      return result.then(value => {
+        argChecker.throwUnlessAllArgumentsHaveBeenChecked();
+        return value;
+      });
+    }
+
     // If f didn't itself throw, make sure it checked all of its arguments.
     argChecker.throwUnlessAllArgumentsHaveBeenChecked();
     return result;
