@@ -199,6 +199,39 @@ fi
 npm install
 npm outdated
 npm audit || true
+
+# http-proxy 1.18.1 is the latest published version, but it still uses
+# deprecated util._extend. Patch it here until upstream publishes a fix.
+node <<'EOF'
+const fs = require("fs");
+
+const replacements = new Map([
+    ["node_modules/http-proxy/lib/http-proxy/common.js", [
+        ["    extend   = require('util')._extend,\n", ""],
+        ["extend({}, req.headers)", "Object.assign({}, req.headers)"],
+        ["extend(outgoing.headers, options.headers)", "Object.assign(outgoing.headers, options.headers)"],
+    ]],
+    ["node_modules/http-proxy/lib/http-proxy/index.js", [
+        ["    extend    = require('util')._extend,\n", ""],
+        ["extend({}, options)", "Object.assign({}, options)"],
+        ["extend(requestOptions, args[cntr])", "Object.assign(requestOptions, args[cntr])"],
+    ]],
+]);
+
+for (const [file, fileReplacements] of replacements) {
+    let contents = fs.readFileSync(file, "utf8");
+
+    for (const [from, to] of fileReplacements) {
+        if (!contents.includes(from)) {
+            throw new Error(`${file} did not contain expected text: ${from}`);
+        }
+
+        contents = contents.replace(from, to);
+    }
+
+    fs.writeFileSync(file, contents);
+}
+EOF
 cp -R node_modules/* "${DIR}/lib/node_modules/"
 
 #Also copy package.json and package-lock.json to lib folder so that npm
