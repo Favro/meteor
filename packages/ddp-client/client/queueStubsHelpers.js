@@ -75,7 +75,7 @@ export const loadAsyncStubHelpers = () => {
     const alreadyInSimulation = enclosing?.isSimulation;
     const isFromCallAsync = enclosing?._isFromCallAsync;
 
-    if (options.executeImmediately) {
+    if (options?.executeImmediately) {
       return oldApplyAsync.apply(this, args);
     }
 
