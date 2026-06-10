@@ -282,9 +282,10 @@ Object.assign(Session.prototype, {
     // Make a shallow copy of the set of universal handlers and start them. If
     // additional universal publishers start while we're running them (due to
     // yielding), they will run separately as part of Server.publish.
-    for (const handler of [...self.server.universal_publish_handlers]) {
-      self._startSubscription(handler);
-    }
+    var handlers = [...self.server.universal_publish_handlers];
+    return Promise.all(handlers.map(function (handler) {
+      return self._startSubscription(handler);
+    }));
   },
 
   // Stop heartbeat if running
@@ -760,7 +761,11 @@ Object.assign(Session.prototype, {
       // parallel with the ones we're spinning up here, and spin up universal
       // subs.
       self._dontStartNewUniversalSubs = false;
-      self.startUniversalSubs();
+      // Await the universal subs (which include the accounts package's
+      // publication of the logged-in user document) so that their documents
+      // are part of the diff sent below, before the login method completes.
+      // With Fibers this was implicitly synchronous.
+      await self.startUniversalSubs();
     }, { name: '_setUserId' });
 
     // Start sending messages again, beginning with the diff from the previous
