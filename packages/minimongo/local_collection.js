@@ -552,7 +552,7 @@ export default class LocalCollection {
 
     const qidToOriginalResults = this.prepareUpdate(selector);
 
-    let recomputeQids = {};
+    const recomputeQids = {};
 
     let updateCount = 0;
 
@@ -562,11 +562,14 @@ export default class LocalCollection {
       if (queryResult.result) {
         // XXX Should we save the original even if mod ends up being a no-op?
         this._saveOriginal(id, doc);
-        recomputeQids = await this._modifyAndNotifyAsync(
+        // Merge instead of overwrite: with a multi update, every modified
+        // document may flag skip/limit queries for recompute, not just the
+        // last one.
+        Object.assign(recomputeQids, await this._modifyAndNotifyAsync(
           doc,
           mod,
           queryResult.arrayIndices
-        );
+        ));
 
         ++updateCount;
 
@@ -625,7 +628,7 @@ export default class LocalCollection {
 
     const qidToOriginalResults = this.prepareUpdate(selector);
 
-    let recomputeQids = {};
+    const recomputeQids = {};
 
     let updateCount = 0;
 
@@ -635,11 +638,14 @@ export default class LocalCollection {
       if (queryResult.result) {
         // XXX Should we save the original even if mod ends up being a no-op?
         this._saveOriginal(id, doc);
-        recomputeQids = this._modifyAndNotifySync(
+        // Merge instead of overwrite: with a multi update, every modified
+        // document may flag skip/limit queries for recompute, not just the
+        // last one.
+        Object.assign(recomputeQids, this._modifyAndNotifySync(
           doc,
           mod,
           queryResult.arrayIndices
-        );
+        ));
 
         ++updateCount;
 
