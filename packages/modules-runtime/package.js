@@ -6,12 +6,10 @@ Package.describe({
   documentation: "README.md"
 });
 
-Npm.depends({
-  "@meteorjs/install": "0.14.0"
-});
-
 Package.onUse(function(api) {
-  api.addFiles(".npm/package/node_modules/@meteorjs/install/install.js", [
+  // Vendored copy of @meteorjs/install 0.14.0 with a fix for resolving
+  // scoped package names without a subpath in extractPackageName.
+  api.addFiles("install.js", [
     "client",
     "server"
   ], {
