@@ -648,17 +648,21 @@ makeInstaller = function (options) {
 
           var exportPath = resolvePackageJsonExports(packageSubpath, pkg);
 
-          if (!exportPath) {
-            var err = new Error(
-              '[ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath "' + packageSubpath +
-              '" is not defined by "exports" in ' + pkgJsonFile.module.id
-            );
-            err.code = 'ERR_PACKAGE_PATH_NOT_EXPORTED';
-            throw err;
-          }
+          if (exportPath) {
+            resolved = mainFile = fileAppendId(file, exportPath, extensions) ||
+              fileResolve(file, exportPath, parentModule, seenDirFiles);
+          } else if (packageSubpath.indexOf('./') === 0) {
+            // The package.json stub in the bundle only carries the subset
+            // of "exports" that was used at build time, so a missing
+            // subpath here does not mean the package does not export it.
+            // Fall back to resolving the subpath directly instead of
+            // throwing ERR_PACKAGE_PATH_NOT_EXPORTED.
+            resolved = mainFile = fileAppendId(file, packageSubpath, extensions);
 
-          resolved = mainFile = fileAppendId(file, exportPath, extensions) ||
-            fileResolve(file, exportPath, parentModule, seenDirFiles);
+            if (resolved === file) {
+              seenDirFiles.push(file);
+            }
+          }
         } else if (pkg && (!packageName || packageSubpath === '.')) {
           resolved = mainFields.some(function (name) {
             var main = pkg[name];
