@@ -1,6 +1,8 @@
 // Options that will be populated below and then passed to makeInstaller.
 var makeInstallerOptions = {
-  conditions: ["node-addons", "node", "require", "import", "module-sync", "default"]
+  // Match the build-time Resolver conditions: the server bundle loads
+  // modules through CommonJS require, so "import" is excluded.
+  conditions: ["node-addons", "node", "require", "module-sync", "default"]
 };
 
 // RegExp matching strings that don't start with a `.` or a `/`.

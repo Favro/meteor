@@ -5,6 +5,7 @@ meteorInstall = makeInstaller({
   // package.json over the "module" field over the "main" field.
   browser: true,
   mainFields: ["browser", "module", "main"],
+  conditions: ["browser", "module", "import", "require", "default"],
 
   fallback: function (id, parentId, error) {
     verifyErrors(id, parentId, error);

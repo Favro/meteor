@@ -116,10 +116,16 @@ export default class Resolver {
         this.mainFields = ["browser", "module", "main"];
       }
       // TODO: add development/production conditions
-      this.conditions = ['module', 'browser', 'default']
+      // Both "import" and "require" targets are usable in the web bundle,
+      // since the bundler compiles ESM and CommonJS alike; which one wins
+      // for a dual package is decided by its exports key order.
+      this.conditions = ['browser', 'module', 'import', 'require', 'default']
     } else {
       this.mainFields = ["main"];
-      this.conditions = ['node-addons', 'node', 'import', 'require', 'module-sync', 'default'];
+      // The server bundle loads modules through CommonJS require, so use
+      // Node's require() condition set, which excludes "import". ESM-only
+      // packages are still resolved through their "default" targets.
+      this.conditions = ['node-addons', 'node', 'require', 'module-sync', 'default'];
     }
   }
 
