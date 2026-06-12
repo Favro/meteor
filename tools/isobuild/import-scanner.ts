@@ -1646,13 +1646,16 @@ export default class ImportScanner {
       // to the forDynamicImport parameter.
       setImportedStatus(file, forDynamicImport ? Status.DYNAMIC : Status.STATIC);
 
-      // Merge in any new `exports` field
+      // Merge in any new `exports` field. The existing stub might have been
+      // added without an `exports` field, for example when the package.json
+      // was included in the bundle without being used to resolve an import.
       let exportsChanged = false;
       if (pkg.exports) {
+        const fileExports = file.jsonData!.exports;
         Object.keys(pkg.exports).forEach(key => {
-          if (key in file.jsonData!.exports) {
+          if (fileExports && key in fileExports) {
             assert(
-              pkg.exports[key] !== file.jsonData!.exports,
+              pkg.exports[key] !== fileExports,
               'Inconsistent export values??'
             );
           } else {
