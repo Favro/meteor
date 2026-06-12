@@ -760,7 +760,8 @@ makeInstaller = function (options) {
       return id;
     } else if (id.charAt(0) === '@') {
       // everything before second "/"
-      return id.substring(0, id.indexOf('/', id.indexOf('/') + 1));
+      var secondIndex = id.indexOf('/', id.indexOf('/') + 1);
+      return secondIndex === -1 ? id : id.substring(0, secondIndex);
     }
 
     return id.substring(0, id.indexOf('/'));
