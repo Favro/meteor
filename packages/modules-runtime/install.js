@@ -569,6 +569,12 @@ makeInstaller = function (options) {
     var packageName = extractPackageName(id);
     var packageSubpath = '.' + id.substring(packageName.length);
 
+    if (packageSubpath === './') {
+      // A trailing slash with no subpath (e.g. "util/") refers to the
+      // package root.
+      packageSubpath = '.';
+    }
+
     file =
       // Absolute module identifiers (i.e. those that begin with a `/`
       // character) are interpreted relative to the root directory, which

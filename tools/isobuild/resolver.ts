@@ -154,6 +154,11 @@ export default class Resolver {
     }
 
     packageSubpath = `.${id.substring(packageName.length)}`
+    if (packageSubpath === './') {
+      // A trailing slash with no subpath (e.g. "util/") refers to the
+      // package root.
+      packageSubpath = '.';
+    }
     return { packageName, packageSubpath };
   }
 
