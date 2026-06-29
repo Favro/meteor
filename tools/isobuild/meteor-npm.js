@@ -34,6 +34,8 @@ var meteorNpm = exports;
 // change this will recreate the npm-shrinkwrap.json file
 // and install all dependencies from scratch
 const LOCK_FILE_VERSION = 4;
+const NPM_DIRECTORY_LOCK_STALE_MS = 30 * 60 * 1000;
+const NPM_DIRECTORY_LOCK_WAIT_MS = 200;
 
 // Expose the version of npm in use from the dev bundle.
 meteorNpm.npmVersion = "10.1.0";
@@ -72,84 +74,153 @@ meteorNpm.updateDependencies = async function (packageName,
   var newPackageNpmDir =
     convertColonsInPath(packageNpmDir) + '-new-' + utils.randomToken();
 
-  if (! npmDependencies || _.isEmpty(npmDependencies)) {
-    // No NPM dependencies? Delete the .npm directory if it exists (because,
-    // eg, we used to have NPM dependencies but don't any more).  We'd like to
-    // do this in as atomic a way as possible in case multiple meteor
-    // instances are trying to make this update in parallel, so we rename the
-    // directory to something before doing the rm -rf.
-    try {
-      await files.rename(packageNpmDir, newPackageNpmDir);
-    } catch (e) {
-      if (e.code !== 'ENOENT') {
-        throw e;
+  return await withPackageNpmDirectoryLock(packageName, packageNpmDir, async function () {
+    if (! npmDependencies || _.isEmpty(npmDependencies)) {
+      // No NPM dependencies? Delete the .npm directory if it exists (because,
+      // eg, we used to have NPM dependencies but don't any more).  We'd like to
+      // do this in as atomic a way as possible in case multiple meteor
+      // instances are trying to make this update in parallel, so we rename the
+      // directory to something before doing the rm -rf.
+      try {
+        await files.rename(packageNpmDir, newPackageNpmDir);
+      } catch (e) {
+        if (e.code !== 'ENOENT') {
+          throw e;
+        }
+        // It didn't exist, which is exactly what we wanted.
+        return false;
       }
-      // It didn't exist, which is exactly what we wanted.
+      await files.rm_recursive_deferred(newPackageNpmDir);
       return false;
     }
-    await files.rm_recursive_deferred(newPackageNpmDir);
-    return false;
+
+    try {
+      let shouldCreateFreshNpmDirectory = false;
+
+      // v0.6.0 had a bug that could cause .npm directories to be
+      // created without npm-shrinkwrap.json
+      // (https://github.com/meteor/meteor/pull/927). Running your app
+      // in that state causes consistent "Corrupted .npm directory"
+      // errors.
+      //
+      // If you've reached that state, build a fresh replacement and swap it in
+      // after it is ready.
+      if (files.exists(packageNpmDir) &&
+          ! files.exists(files.pathJoin(packageNpmDir, 'npm-shrinkwrap.json'))) {
+        shouldCreateFreshNpmDirectory = true;
+      }
+
+      // with the changes on npm 8, where there were changes to how the packages metadata is given
+      // we need to reinstall all packages from scratch
+      // and to do that we need to rewrite all the shrinkwrap files
+      if (files.exists(packageNpmDir) && ! shouldCreateFreshNpmDirectory) {
+        try {
+          const shrinkwrap = JSON.parse(files.readFile(
+            files.pathJoin(packageNpmDir, 'npm-shrinkwrap.json')
+          ));
+          if (shrinkwrap.lockfileVersion !== LOCK_FILE_VERSION) {
+            shouldCreateFreshNpmDirectory = true;
+          }
+        } catch (e) {
+          shouldCreateFreshNpmDirectory = true;
+        }
+      }
+
+      if (files.exists(packageNpmDir) && ! shouldCreateFreshNpmDirectory) {
+        // we already nave a .npm directory. update it appropriately with some
+        // ceremony involving:
+        // `npm install`, `npm install name@version`, `npm shrinkwrap`
+        await updateExistingNpmDirectory(
+          packageName, newPackageNpmDir, packageNpmDir, npmDependencies, quiet);
+      } else {
+        // create a fresh .npm directory with `npm install
+        // name@version` and `npm shrinkwrap`
+        await createFreshNpmDirectory(
+          packageName, newPackageNpmDir, packageNpmDir, npmDependencies, quiet);
+      }
+    } catch (e) {
+      if (e instanceof NpmFailure) {
+        // Something happened that was out of our control, but wasn't
+        // exactly unexpected (eg, no such npm package, no internet
+        // connection). Handle it gracefully.
+        return false;
+      }
+
+      // Some other exception -- let it propagate.
+      throw e;
+    } finally {
+      if (files.exists(newPackageNpmDir)) {
+        await files.rm_recursive_deferred(newPackageNpmDir);
+      }
+      tmpDirs = _.without(tmpDirs, newPackageNpmDir);
+    }
+
+    return true;
+  });
+};
+
+async function withPackageNpmDirectoryLock(packageName, packageNpmDir, callback) {
+  const lockDir = convertColonsInPath(packageNpmDir) + ".lock";
+  let loggedWait = false;
+
+  files.mkdir_p(files.pathDirname(lockDir));
+
+  while (true) {
+    try {
+      fs.mkdirSync(lockDir);
+      files.writeFile(files.pathJoin(lockDir, "owner.json"), JSON.stringify({
+        packageName,
+        pid: process.pid,
+        startedAt: Date.now(),
+      }, null, 2));
+      break;
+    } catch (e) {
+      if (e.code !== "EEXIST") {
+        throw e;
+      }
+
+      if (packageNpmDirectoryLockIsStale(lockDir)) {
+        fs.rmSync(lockDir, { recursive: true, force: true });
+        continue;
+      }
+
+      if (!loggedWait) {
+        runLog.rawLog(`Waiting for Meteor package npm directory lock: ${packageNpmDir}\n`);
+        loggedWait = true;
+      }
+
+      await utils.sleepMs(NPM_DIRECTORY_LOCK_WAIT_MS);
+    }
   }
 
   try {
-    // v0.6.0 had a bug that could cause .npm directories to be
-    // created without npm-shrinkwrap.json
-    // (https://github.com/meteor/meteor/pull/927). Running your app
-    // in that state causes consistent "Corrupted .npm directory"
-    // errors.
-    //
-    // If you've reached that state, delete the empty directory and
-    // proceed.
-    if (files.exists(packageNpmDir) &&
-        ! files.exists(files.pathJoin(packageNpmDir, 'npm-shrinkwrap.json'))) {
-      await files.rm_recursive_deferred(packageNpmDir);
-    }
-
-    // with the changes on npm 8, where there were changes to how the packages metadata is given
-    // we need to reinstall all packages from scratch
-    // and to do that we need to rewrite all the shrinkwrap files
-    if (files.exists(packageNpmDir)) {
-      try {
-        const shrinkwrap = JSON.parse(files.readFile(
-          files.pathJoin(packageNpmDir, 'npm-shrinkwrap.json')
-        ));
-        if (shrinkwrap.lockfileVersion !== LOCK_FILE_VERSION) {
-          await files.rm_recursive_deferred(packageNpmDir);
-        }
-      } catch (e) {}
-    }
-
-    if (files.exists(packageNpmDir)) {
-      // we already nave a .npm directory. update it appropriately with some
-      // ceremony involving:
-      // `npm install`, `npm install name@version`, `npm shrinkwrap`
-      await updateExistingNpmDirectory(
-        packageName, newPackageNpmDir, packageNpmDir, npmDependencies, quiet);
-    } else {
-      // create a fresh .npm directory with `npm install
-      // name@version` and `npm shrinkwrap`
-      await createFreshNpmDirectory(
-        packageName, newPackageNpmDir, packageNpmDir, npmDependencies, quiet);
-    }
-  } catch (e) {
-    if (e instanceof NpmFailure) {
-      // Something happened that was out of our control, but wasn't
-      // exactly unexpected (eg, no such npm package, no internet
-      // connection). Handle it gracefully.
-      return false;
-    }
-
-    // Some other exception -- let it propagate.
-    throw e;
+    return await callback();
   } finally {
-    if (files.exists(newPackageNpmDir)) {
-      await files.rm_recursive_deferred(newPackageNpmDir);
-    }
-    tmpDirs = _.without(tmpDirs, newPackageNpmDir);
+    fs.rmSync(lockDir, { recursive: true, force: true });
+  }
+}
+
+function packageNpmDirectoryLockIsStale(lockDir) {
+  const ownerPath = files.pathJoin(lockDir, "owner.json");
+  let owner;
+
+  try {
+    owner = JSON.parse(files.readFile(ownerPath));
+  } catch (e) {
+    return true;
   }
 
-  return true;
-};
+  if (Date.now() - owner.startedAt > NPM_DIRECTORY_LOCK_STALE_MS) {
+    return true;
+  }
+
+  try {
+    process.kill(owner.pid, 0);
+    return false;
+  } catch (e) {
+    return e.code !== "EPERM";
+  }
+}
 
 // Returns a flattened dictionary of npm package names used in production,
 // or false if there is no package.json file in the parent directory.
@@ -644,7 +715,9 @@ var updateExistingNpmDirectory = async function (packageName, newPackageNpmDir,
     }
 
     if (oldNodeVersion !== currentNodeCompatibilityVersion()) {
-      await files.rm_recursive_deferred(nodeModulesDir);
+      await createFreshNpmDirectory(
+        packageName, newPackageNpmDir, packageNpmDir, npmDependencies, quiet);
+      return;
     }
   }
 
