@@ -12,10 +12,9 @@ var Console = require('../console/console.js').Console;
 // on that database.
 var runMongoShell = function (url, err) {
   // XXX mongo URLs are not real URLs (notably, the comma-separation for
-  // multiple hosts). We've had a little better luck using the mongodb-uri npm
-  // package.
-  var mongoUrl = require('url').parse(url);
-  const ls = child_process.spawn('mongosh', [mongoUrl.href], {
+  // multiple hosts), so pass the URL through to mongosh untouched instead of
+  // round-tripping it through a URL parser.
+  const ls = child_process.spawn('mongosh', [url], {
     stdio: 'inherit',
   });
   ls.on('error', err);

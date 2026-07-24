@@ -1,7 +1,6 @@
 import { Meteor } from 'meteor/meteor';
 import { WebApp, WebAppInternals } from 'meteor/webapp';
 import path from 'path';
-import { parse as parseUrl } from 'url';
 import {
   RSPACK_CHUNKS_CONTEXT,
   RSPACK_ASSETS_CONTEXT,
@@ -179,7 +178,7 @@ const originalStaticFilesMiddleware = WebAppInternals.staticFilesMiddleware;
 
 // Handle rspack assets on-demand to add Meteor's static files headers
 WebAppInternals.staticFilesMiddleware = async function(staticFilesByArch, req, res, next) {
-  const pathname = parseUrl(req.url).pathname;
+  const pathname = new URL(req.url, 'http://localhost').pathname;
 
   try {
     // Check if this is a rspack asset request

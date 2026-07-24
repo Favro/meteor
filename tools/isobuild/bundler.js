@@ -1805,8 +1805,13 @@ class ClientTarget extends Target {
 
         // Use a SHA to make this cacheable.
         const sourceMapBaseName = file.hash() + '.map';
-        manifestItem.sourceMapUrl = require('url').resolve(
-          file.url, sourceMapBaseName);
+        // file.url is a root-relative path; resolve the sibling .map name
+        // against it with the WHATWG URL API (url.resolve is deprecated).
+        const resolvedMapUrl =
+          new URL(sourceMapBaseName, new URL(file.url, 'http://resolve.invalid'));
+        manifestItem.sourceMapUrl = resolvedMapUrl.host === 'resolve.invalid'
+          ? resolvedMapUrl.pathname + resolvedMapUrl.search + resolvedMapUrl.hash
+          : resolvedMapUrl.href;
       }
 
       // Set this now, in case we mutated the file's contents.
