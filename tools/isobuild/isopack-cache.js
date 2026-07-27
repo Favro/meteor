@@ -316,82 +316,94 @@ export class IsopackCache {
         // We don't need to call self._lintLocalPackage here, because
         // lintingMessages is saved on the isopack.
       } else {
-        // Dispose old plugins before creating new ones to allow cleanup
-        // of resources like file watchers and caches
-        if (previousIsopack) {
-          previousIsopack.disposePlugins();
-        }
-
-        var pluginCacheDir;
-        if (self._pluginCacheDirRoot) {
-          pluginCacheDir = self._pluginCacheDirForLocal(name);
-        }
-
-        // Do we have an up-to-date package on disk?
-        var isopackBuildInfoJson = self.cacheDir && files.readJSONOrNull(
-          self._isopackBuildInfoPath(name));
-        var upToDate = await self._checkUpToDate(isopackBuildInfoJson);
-
-        if (upToDate) {
-          // Reuse existing plugin cache dir
-          pluginCacheDir && files.mkdir_p(pluginCacheDir);
-
-          isopack = new isopackModule.Isopack();
-          await isopack.initFromPath(name, self._isopackDir(name), {
-            isopackBuildInfoJson: isopackBuildInfoJson,
-            pluginCacheDir: pluginCacheDir
-          });
-          // _checkUpToDate already verified that
-          // isopackBuildInfoJson.pluginProviderPackageMap is a subset of
-          // self._packageMap, so this operation is correct. (It can't be done
-          // by isopack.initFromPath, because Isopack doesn't have access to
-          // the PackageMap, and specifically to the local catalog it knows
-          // about.)
-          isopack.setPluginProviderPackageMap(
-            self._packageMap.makeSubsetMap(
-              Object.keys(isopackBuildInfoJson.pluginProviderPackageMap)));
-          // Because we don't save linter messages to disk, we have to relint
-          // this package.
-          // XXX save linter messages to disk?
-          await self._lintLocalPackage(packageInfo.packageSource, isopack);
-        } else {
-          // Nope! Compile it again. Give it a fresh plugin cache.
-          if (pluginCacheDir) {
-            await files.rm_recursive_deferred(pluginCacheDir);
-            files.mkdir_p(pluginCacheDir);
-          }
-
-          isopack = await compiler.compile(packageInfo.packageSource, {
-            packageMap: self._packageMap,
-            isopackCache: self,
-            includeCordovaUnibuild: self._includeCordovaUnibuild,
-            includePluginProviderPackageMap: true,
-            pluginCacheDir: pluginCacheDir
-          });
-          // Accept the compiler's result, even if there were errors (since it
-          // at least will have a useful WatchSet and will allow us to keep
-          // going and compile other packages that depend on this one). However,
-          // only lint it and save it to disk if there were no errors.
-          if (! buildmessage.jobHasMessages()) {
-            // Lint the package. We do this before saving so that the linter can
-            // augment the saved-to-disk WatchSet with linter-specific files.
-            await self._lintLocalPackage(packageInfo.packageSource, isopack);
-            if (self.cacheDir) {
-              // Save to disk, for next time!
-              await isopack.saveToPath(self._isopackDir(name), {
-                includeIsopackBuildInfo: true,
-                isopackCache: self,
-              });
-            }
-          }
-
-          requestGarbageCollection();
-        }
+        isopack = await self._buildOrLoadLocalPackage(
+          name, packageInfo, previousIsopack);
       }
 
       self.allLoadedLocalPackagesWatchSet.merge(isopack.getMergedWatchSet());
       self._isopacks[name] = isopack;
     });
+  }
+
+  // Loads one local package from the cache if what is there is still up to date,
+  // and compiles and saves it if not. Returns the isopack either way.
+  async _buildOrLoadLocalPackage(name, packageInfo, previousIsopack) {
+    var self = this;
+    var isopack;
+
+    // Dispose old plugins before creating new ones to allow cleanup
+    // of resources like file watchers and caches
+    if (previousIsopack) {
+      previousIsopack.disposePlugins();
+    }
+
+    var pluginCacheDir;
+    if (self._pluginCacheDirRoot) {
+      pluginCacheDir = self._pluginCacheDirForLocal(name);
+    }
+
+    // Do we have an up-to-date package on disk?
+    var isopackBuildInfoJson = self.cacheDir && files.readJSONOrNull(
+      self._isopackBuildInfoPath(name));
+    var upToDate = await self._checkUpToDate(isopackBuildInfoJson);
+
+    if (upToDate) {
+      // Reuse existing plugin cache dir
+      pluginCacheDir && files.mkdir_p(pluginCacheDir);
+
+      isopack = new isopackModule.Isopack();
+      await isopack.initFromPath(name, self._isopackDir(name), {
+        isopackBuildInfoJson: isopackBuildInfoJson,
+        pluginCacheDir: pluginCacheDir
+      });
+      // _checkUpToDate already verified that
+      // isopackBuildInfoJson.pluginProviderPackageMap is a subset of
+      // self._packageMap, so this operation is correct. (It can't be done
+      // by isopack.initFromPath, because Isopack doesn't have access to
+      // the PackageMap, and specifically to the local catalog it knows
+      // about.)
+      isopack.setPluginProviderPackageMap(
+        self._packageMap.makeSubsetMap(
+          Object.keys(isopackBuildInfoJson.pluginProviderPackageMap)));
+      // Because we don't save linter messages to disk, we have to relint
+      // this package.
+      // XXX save linter messages to disk?
+      await self._lintLocalPackage(packageInfo.packageSource, isopack);
+    } else {
+      // Nope! Compile it again. Give it a fresh plugin cache.
+      if (pluginCacheDir) {
+        await files.rm_recursive_deferred(pluginCacheDir);
+        files.mkdir_p(pluginCacheDir);
+      }
+
+      isopack = await compiler.compile(packageInfo.packageSource, {
+        packageMap: self._packageMap,
+        isopackCache: self,
+        includeCordovaUnibuild: self._includeCordovaUnibuild,
+        includePluginProviderPackageMap: true,
+        pluginCacheDir: pluginCacheDir
+      });
+      // Accept the compiler's result, even if there were errors (since it
+      // at least will have a useful WatchSet and will allow us to keep
+      // going and compile other packages that depend on this one). However,
+      // only lint it and save it to disk if there were no errors.
+      if (! buildmessage.jobHasMessages()) {
+        // Lint the package. We do this before saving so that the linter can
+        // augment the saved-to-disk WatchSet with linter-specific files.
+        await self._lintLocalPackage(packageInfo.packageSource, isopack);
+        if (self.cacheDir) {
+          // Save to disk, for next time!
+          await isopack.saveToPath(self._isopackDir(name), {
+            includeIsopackBuildInfo: true,
+            isopackCache: self,
+          });
+        }
+      }
+
+      requestGarbageCollection();
+    }
+
+    return isopack;
   }
 
   // Runs appropriate linters on a package. It also augments their unibuilds'
