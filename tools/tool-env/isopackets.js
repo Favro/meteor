@@ -10,6 +10,11 @@ var buildmessage = require('../utils/buildmessage.js');
 var files = require('../fs/files');
 var config = require('../meteor-services/config.js');
 var watch = require('../fs/watch');
+import {
+  defaultLockRoot,
+  exclusiveLockPath,
+  withExclusiveLock,
+} from '../fs/exclusive-lock';
 var Console = require('../console/console.js').Console;
 var packageMapModule = require('../packaging/package-map.js');
 var archinfo = require('../utils/archinfo');
@@ -152,37 +157,67 @@ export async function ensureIsopacketsLoadable() {
     return;
   }
 
-  // We make this object lazily later.
-  var isopacketBuildContext = null;
+  // Checking whether an isopacket is up to date walks the tool's sources, so it
+  // is done once here and only repeated for the ones that turn out to need
+  // building.
+  const staleIsopacketNames = [];
+  for (const isopacketName of Object.keys(ISOPACKETS)) {
+    if (isopacketNeedsRebuild(isopacketName)) {
+      staleIsopacketNames.push(isopacketName);
+    } else {
+      // Loadable as it is.
+      loadedIsopackets[isopacketName] = null;
+    }
+  }
 
+  if (staleIsopacketNames.length === 0) {
+    return;
+  }
+
+  // Isopackets are built into a directory shared by the applications of one
+  // checkout (no other checkout builds into it), and two builds at once would
+  // each replace what the other wrote. Only one builds at a time; the rest wait
+  // and find the work already done.
+  const lockPath = exclusiveLockPath(defaultLockRoot(),
+    config.getIsopacketRoot());
+
+  const messages = await withExclusiveLock(lockPath, {
+      onWaiting() {
+        Console.info("Waiting for another build to finish building isopackets...");
+      },
+    },
+    () => buildIsopackets(staleIsopacketNames));
+
+  // This is a build step ... but it's one that only happens in development, so
+  // it can just crash the app instead of being handled nicely.
+  if (messages.hasMessages()) {
+    Console.error("Errors prevented isopacket build:");
+    Console.printMessages(messages);
+    throw new Error("isopacket build failed?");
+  }
+}
+
+// Builds the named isopackets, each of which looked out of date. Whoever held the
+// lock before us may have built some of them already, so each is checked again.
+async function buildIsopackets(isopacketNames) {
+  var isopacketBuildContext = null;
   var failedPackageBuild = false;
-  // Look at each isopacket. Check to see if it's on disk and up to date. If
-  // not, build it. We rebuild them in the order listed in ISOPACKETS.
-  var messages = await Console.withProgressDisplayVisible(function () {
+
+  return await Console.withProgressDisplayVisible(function () {
     return buildmessage.capture(async function () {
-      for (const [isopacketName, packages] of Object.entries(ISOPACKETS)) {
+      for (const isopacketName of isopacketNames) {
         if (failedPackageBuild) {
           continue;
         }
 
-        var isopacketRoot = isopacketPath(isopacketName);
-        var existingBuildinfo = files.readJSONOrNull(
-            files.pathJoin(isopacketRoot, 'isopacket-buildinfo.json'));
-        var needRebuild = !existingBuildinfo;
-        if (!needRebuild && existingBuildinfo.builtBy !== compiler.BUILT_BY) {
-          needRebuild = true;
-        }
-        if (!needRebuild) {
-          var watchSet = watch.WatchSet.fromJSON(existingBuildinfo.watchSet);
-          if (!watch.isUpToDate(watchSet)) {
-            needRebuild = true;
-          }
-        }
-        if (!needRebuild) {
-          // Great, it's loadable without a rebuild.
+        if (! isopacketNeedsRebuild(isopacketName)) {
+          // Built while we were waiting for the lock.
           loadedIsopackets[isopacketName] = null;
           continue;
         }
+
+        const packages = ISOPACKETS[isopacketName];
+        const isopacketRoot = isopacketPath(isopacketName);
 
         // We're going to need to build! Make a catalog and loader if we haven't
         // yet.
@@ -220,6 +255,7 @@ export async function ensureIsopacketsLoadable() {
           await builder.init();
           await builder.writeJson('isopacket-buildinfo.json', {
             builtBy: compiler.BUILT_BY,
+            builtFrom: isopacketSourceRoot(),
             watchSet: built.watchSet.toJSON()
           });
           await built.image.write(builder);
@@ -230,14 +266,34 @@ export async function ensureIsopacketsLoadable() {
       }
     });
   });
+}
 
-  // This is a build step ... but it's one that only happens in development, so
-  // it can just crash the app instead of being handled nicely.
-  if (messages.hasMessages()) {
-    Console.error("Errors prevented isopacket build:");
-    Console.printMessages(messages);
-    throw new Error("isopacket build failed?");
+function isopacketNeedsRebuild(isopacketName) {
+  return ! isopacketBuildinfoIsCurrent(files.readJSONOrNull(
+    files.pathJoin(isopacketPath(isopacketName), 'isopacket-buildinfo.json')));
+}
+
+// An isopacket is current when it was built by this version of the tool, from
+// this checkout, and from sources that have not changed since.
+//
+// Which checkout built it has to be recorded because the watch set cannot say:
+// it names files in the checkout that did the building, so it stays up to date
+// when read from another checkout sharing the warehouse, which would then load
+// the first one's tool code as its own.
+export function isopacketBuildinfoIsCurrent(buildinfo) {
+  if (! buildinfo ||
+      buildinfo.builtBy !== compiler.BUILT_BY ||
+      buildinfo.builtFrom !== isopacketSourceRoot()) {
+    return false;
   }
+
+  return watch.isUpToDate(watch.WatchSet.fromJSON(buildinfo.watchSet));
+}
+
+// Canonical, so that one checkout reached by different paths is still recognized
+// as the checkout that built it.
+function isopacketSourceRoot() {
+  return files.realpath(files.getCurrentToolsDir());
 }
 
 // Returns a new all-local-packages catalog to be used for building isopackets.

@@ -7,6 +7,12 @@ var isopackModule = require('./isopack.js');
 var watch = require('../fs/watch');
 var colonConverter = require('../utils/colon-converter.js');
 var Profile = require('../tool-env/profile').Profile;
+import {
+  defaultLockRoot,
+  exclusiveLockPath,
+  withExclusiveLock,
+} from '../fs/exclusive-lock';
+var Console = require('../console/console.js').Console;
 import { requestGarbageCollection } from "../utils/gc.js";
 
 export class IsopackCache {
@@ -316,8 +322,11 @@ export class IsopackCache {
         // We don't need to call self._lintLocalPackage here, because
         // lintingMessages is saved on the isopack.
       } else {
-        isopack = await self._buildOrLoadLocalPackage(
-          name, packageInfo, previousIsopack);
+        // Under the lock for this package's place in the cache: what follows
+        // decides whether what is on disk can be used and otherwise replaces it,
+        // which another build sharing the cache must not be doing at the time.
+        isopack = await self._withIsopackLock(name, () =>
+          self._buildOrLoadLocalPackage(name, packageInfo, previousIsopack));
       }
 
       self.allLoadedLocalPackagesWatchSet.merge(isopack.getMergedWatchSet());
@@ -404,6 +413,35 @@ export class IsopackCache {
     }
 
     return isopack;
+  }
+
+  // Runs the callback while holding the lock for one package's place in the
+  // cache, so that builds sharing a cache directory take turns over a package
+  // rather than reading one while another replaces it. Without a cache directory
+  // the isopack only ever lives in memory, where no other build can reach it,
+  // and nothing is taken.
+  //
+  // One of these is held at a time, which is what keeps two builds from waiting
+  // on each other: _ensurePackageLoaded loads everything a package needs before
+  // building it, so the packages compiling under this lock are already loaded and
+  // ask for no lock of their own.
+  async _withIsopackLock(name, callback) {
+    var self = this;
+    if (! self.cacheDir) {
+      return await callback();
+    }
+
+    // Named after the directory rather than the package, so that two builds meet
+    // only when they would use the same place on disk, and one that has a cache
+    // to itself contends with nobody.
+    const lockPath = exclusiveLockPath(defaultLockRoot(), self._isopackDir(name));
+
+    return await withExclusiveLock(lockPath, {
+      onWaiting() {
+        Console.info(
+          `Waiting for another build to finish building ${name}...`);
+      },
+    }, callback);
   }
 
   // Runs appropriate linters on a package. It also augments their unibuilds'

@@ -1,9 +1,11 @@
 import { parse as urlParse } from 'url';
+import { createHash } from 'crypto';
 import {
   pathJoin,
   getCurrentToolsDir,
   getHomeDir,
   inCheckout,
+  realpath,
 } from '../fs/files';
 import tropohouse from '../packaging/tropohouse.js';
 
@@ -113,13 +115,28 @@ export function getPackageStorage(options) {
 }
 
 export function getIsopacketRoot() {
-  if (process.env.METEOR_WAREHOUSE_DIR)
-    return pathJoin(process.env.METEOR_WAREHOUSE_DIR, 'isopackets');
-  else if (inCheckout()) {
+  if (process.env.METEOR_WAREHOUSE_DIR) {
+    const isopacketsDir = pathJoin(process.env.METEOR_WAREHOUSE_DIR, 'isopackets');
+
+    // An isopacket is built from the sources of the checkout that builds it, so
+    // a warehouse shared between checkouts keeps one directory per checkout:
+    // in a shared one each build would replace the others', and a checkout that
+    // had just made sure of its own could load another's moments later.
+    return inCheckout()
+      ? pathJoin(isopacketsDir, isopacketSourceKey(getCurrentToolsDir()))
+      : isopacketsDir;
+  } else if (inCheckout()) {
     return pathJoin(getCurrentToolsDir(), '.meteor', 'isopackets');
   } else {
     return pathJoin(getCurrentToolsDir(), 'isopackets');
   }
+}
+
+// Names a checkout briefly enough for a directory name, and by what it is rather
+// than by the path that reached it, so that one checkout reached two ways is not
+// taken for two.
+export function isopacketSourceKey(sourceRoot) {
+  return createHash('sha1').update(realpath(sourceRoot)).digest('hex').slice(0, 16);
 }
 
 // Return the domain name of the current Meteor Accounts server in

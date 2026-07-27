@@ -19,6 +19,11 @@ import {
 import {
   convert as convertColonsInPath
 } from "../utils/colon-converter.js";
+import {
+  defaultLockRoot,
+  exclusiveLockPath,
+  withExclusiveLock,
+} from "../fs/exclusive-lock";
 
 import { wrap as wrapOptimistic } from "optimism";
 import {
@@ -34,8 +39,6 @@ var meteorNpm = exports;
 // change this will recreate the npm-shrinkwrap.json file
 // and install all dependencies from scratch
 const LOCK_FILE_VERSION = 4;
-const NPM_DIRECTORY_LOCK_STALE_MS = 30 * 60 * 1000;
-const NPM_DIRECTORY_LOCK_WAIT_MS = 200;
 
 // Expose the version of npm in use from the dev bundle.
 meteorNpm.npmVersion = "10.1.0";
@@ -74,7 +77,7 @@ meteorNpm.updateDependencies = async function (packageName,
   var newPackageNpmDir =
     convertColonsInPath(packageNpmDir) + '-new-' + utils.randomToken();
 
-  return await withPackageNpmDirectoryLock(packageName, packageNpmDir, async function () {
+  return await withPackageNpmDirectoryLock(packageNpmDir, async function () {
     if (! npmDependencies || _.isEmpty(npmDependencies)) {
       // No NPM dependencies? Delete the .npm directory if it exists (because,
       // eg, we used to have NPM dependencies but don't any more).  We'd like to
@@ -159,67 +162,19 @@ meteorNpm.updateDependencies = async function (packageName,
   });
 };
 
-async function withPackageNpmDirectoryLock(packageName, packageNpmDir, callback) {
-  const lockDir = convertColonsInPath(packageNpmDir) + ".lock";
-  let loggedWait = false;
-
-  files.mkdir_p(files.pathDirname(lockDir));
-
-  while (true) {
-    try {
-      fs.mkdirSync(lockDir);
-      files.writeFile(files.pathJoin(lockDir, "owner.json"), JSON.stringify({
-        packageName,
-        pid: process.pid,
-        startedAt: Date.now(),
-      }, null, 2));
-      break;
-    } catch (e) {
-      if (e.code !== "EEXIST") {
-        throw e;
-      }
-
-      if (packageNpmDirectoryLockIsStale(lockDir)) {
-        fs.rmSync(lockDir, { recursive: true, force: true });
-        continue;
-      }
-
-      if (!loggedWait) {
-        runLog.rawLog(`Waiting for Meteor package npm directory lock: ${packageNpmDir}\n`);
-        loggedWait = true;
-      }
-
-      await utils.sleepMs(NPM_DIRECTORY_LOCK_WAIT_MS);
-    }
-  }
-
-  try {
-    return await callback();
-  } finally {
-    fs.rmSync(lockDir, { recursive: true, force: true });
-  }
+// Guards the work that replaces a package's .npm directory, so that two builds
+// running at once cannot install into it at the same time.
+export async function withPackageNpmDirectoryLock(packageNpmDir, callback) {
+  return await withExclusiveLock(packageNpmDirectoryLockPath(packageNpmDir), {
+    onWaiting() {
+      runLog.rawLog(`Waiting for Meteor package npm directory lock: ${packageNpmDir}\n`);
+    },
+  }, callback);
 }
 
-function packageNpmDirectoryLockIsStale(lockDir) {
-  const ownerPath = files.pathJoin(lockDir, "owner.json");
-  let owner;
-
-  try {
-    owner = JSON.parse(files.readFile(ownerPath));
-  } catch (e) {
-    return true;
-  }
-
-  if (Date.now() - owner.startedAt > NPM_DIRECTORY_LOCK_STALE_MS) {
-    return true;
-  }
-
-  try {
-    process.kill(owner.pid, 0);
-    return false;
-  } catch (e) {
-    return e.code !== "EPERM";
-  }
+export function packageNpmDirectoryLockPath(packageNpmDir) {
+  return exclusiveLockPath(defaultLockRoot(),
+    convertColonsInPath(packageNpmDir));
 }
 
 // Returns a flattened dictionary of npm package names used in production,
