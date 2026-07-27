@@ -92,6 +92,60 @@ const LINKER_CACHE = new LRUCache({
   }
 });
 
+// A linker cache key is "<prefix>_<suffix>", where the prefix identifies the
+// package build (name, architecture, module list, dependencies) and the suffix
+// hashes the contents of those modules. Only the entry whose key matches both is
+// ever read, so writing a new suffix makes every earlier entry for the same
+// prefix dead, and an app that is rebuilt all day accumulates gigabytes of them.
+//
+// Removes those earlier entries and returns them. The entry about to be written
+// is kept, since writeFileAtomically replaces it in place.
+//
+// Entries under a prefix that this build no longer produces are left behind;
+// nothing here knows which packages have gone away.
+export function removeStaleLinkerCacheFiles(cacheDir, cacheKeyPrefix,
+                                            keepFilename) {
+  const prefix = `${cacheKeyPrefix}_`;
+  const removed = [];
+
+  let entries;
+  try {
+    entries = files.readdir(cacheDir);
+  } catch (e) {
+    // A cleanup outside the build may have taken the whole directory.
+    if (e.code !== "ENOENT") {
+      throw e;
+    }
+    return removed;
+  }
+
+  entries.forEach(entry => {
+    if (! entry.startsWith(prefix) ||
+        ! entry.endsWith(".cache")) {
+      return;
+    }
+
+    const absPath = files.pathJoin(cacheDir, entry);
+    if (absPath === keepFilename) {
+      return;
+    }
+
+    try {
+      files.unlink(absPath);
+    } catch (e) {
+      // Another build may have removed the same stale entry already.
+      if (e.code !== "ENOENT") {
+        throw e;
+      }
+      return;
+    }
+
+    removed.push(absPath);
+  });
+
+  return removed;
+}
+
 const serverLibPackages = {
   // Make sure fibers is defined, if nothing else.
   fibers: true
@@ -1780,9 +1834,6 @@ export class PackageSourceBatch {
     const cacheFilename = self.linkerCacheDir &&
       files.pathJoin(self.linkerCacheDir, cacheKey + '.cache');
 
-    const wildcardCacheFilename = cacheFilename &&
-      files.pathJoin(self.linkerCacheDir, cacheKeyPrefix + "_*.cache");
-
     // The return value from _linkJS includes Buffers, but we want everything to
     // be JSON for writing to the disk cache. This function converts the string
     // version to the Buffer version.
@@ -1858,7 +1909,12 @@ export class PackageSourceBatch {
       if (cacheFilename) {
         // Write asynchronously.
         try {
-          await files.rm_recursive_deferred(wildcardCacheFilename);
+          const removed = removeStaleLinkerCacheFiles(
+            self.linkerCacheDir, cacheKeyPrefix, cacheFilename);
+          if (CACHE_DEBUG && removed.length > 0) {
+            console.log('LINKER DISK CACHE SUPERSEDED:',
+                        linkerOptions.name, bundleArch, removed.length);
+          }
         } finally {
           await files.writeFileAtomically(cacheFilename, retAsJSON);
         }
