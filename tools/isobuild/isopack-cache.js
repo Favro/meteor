@@ -423,6 +423,10 @@ export class IsopackCache {
           await isopack.saveToPath(self._isopackDir(name), {
             includeIsopackBuildInfo: true,
             isopackCache: self,
+            // This cache is rebuilt from the sources beside it and never moves,
+            // so it can point at the npm directories it was built from instead
+            // of holding a copy of each.
+            symlinkNodeModules: true,
           });
         }
       }

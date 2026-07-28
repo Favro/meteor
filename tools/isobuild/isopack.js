@@ -1044,6 +1044,12 @@ Object.assign(Isopack.prototype, {
   //   of this flag is allow us to optimize cases that never need to write the
   //   older format, such as the per-app isopack cache.)
   // - isopackCache: isopack cache in which this isopack is registered
+  // - symlinkNodeModules: Point the npm directories of this isopack at the ones
+  //   it was built from rather than copying them; they are most of an isopack's
+  //   size. Only for an isopack written to a local cache, which is rebuilt from
+  //   sources that are right there. An isopack that is going to be moved,
+  //   published or unpacked from a tarball has to carry its own copy, since what
+  //   it was built from will not be where it lands.
   /**
    * @return {Promise<void>}
    */
@@ -1051,6 +1057,7 @@ Object.assign(Isopack.prototype, {
     includePreCompilerPluginIsopackVersions,
     includeIsopackBuildInfo,
     isopackCache = null,
+    symlinkNodeModules = false,
   } = {}) {
     var self = this;
     var outputPath = outputDir;
@@ -1192,7 +1199,7 @@ Object.assign(Isopack.prototype, {
           from: sourcePath,
           to: bundlePath,
           npmDiscards: self.npmDiscards,
-          symlink: false
+          symlink: symlinkNodeModules
         });
       }
 
@@ -1204,7 +1211,11 @@ Object.assign(Isopack.prototype, {
           var pluginDir = await builder.generateFilename(
               'plugin.' + colonConverter.convert(name) + '.' + plugin.arch,
               { directory: true });
-          var pluginBuild = await plugin.write(await builder.enter(pluginDir));
+          // A build plugin carries the npm dependencies it runs on, which is most
+          // of what an isopack weighs.
+          var pluginBuild = await plugin.write(await builder.enter(pluginDir), {
+            includeNodeModules: symlinkNodeModules ? 'symlink' : undefined,
+          });
           var pluginEntry = {
             name: name,
             arch: plugin.arch,

@@ -621,7 +621,9 @@ Previous builder: ${previousBuilder.outputPath}, this builder: ${outputPath}`
   //   symlinks are being used).  Like with WatchSets, they match against
   //   entries that end with a slash if it's a directory.
   // - specificFiles: just copy these paths (specified as relative to 'to').
-  // - symlink: true if the directory should be symlinked instead of copying
+  // - symlink: true if the directory should be symlinked instead of copying.
+  //   Entries that are symlinks to outside the directory are still copied,
+  //   so that their modules resolve dependencies within the copy.
   copyDirectory(options) {
     // TODO(benjamn) Remove this wrapper when Builder#enter is no longer
     // implemented using ridiculous hacks.
@@ -666,8 +668,8 @@ Previous builder: ${previousBuilder.outputPath}, this builder: ${outputPath}`
 
     const rootDir = realpath(from);
 
-    const walk = async (absFrom, relTo) => {
-      if (symlink && ! (relTo in this.usedAsFile)) {
+    const walk = async (absFrom, relTo, dereference) => {
+      if (symlink && ! dereference && ! (relTo in this.usedAsFile)) {
         this._ensureDirectory(files.pathDirname(relTo));
         const absTo = files.pathResolve(this.buildPath, relTo);
         if (this.previousCreatedSymlinks[absFrom] !== relTo) {
@@ -726,18 +728,20 @@ Previous builder: ${previousBuilder.outputPath}, this builder: ${outputPath}`
 
         let fileStatus = optimisticLStatOrNull(thisAbsFrom);
 
-        if (! symlink &&
-            fileStatus &&
+        let dereferenceEntry = dereference;
+        if (fileStatus &&
             fileStatus.isSymbolicLink()) {
-          // If copyDirectory is not allowed to create symbolic links to
-          // external files, and this file is a symbolic link that points
-          // to an external file, update fileStatus so that we copy this
-          // file as a normal file rather than as a symbolic link.
+          // A symbolic link that points outside the directory being copied is
+          // dereferenced and copied, never symlinked: when copying, the link
+          // could dangle; when symlinking, modules under the target would
+          // resolve their dependencies from the target's location, which need
+          // not hold them.
           const externalPath = getExternalPath();
           if (externalPath) {
             // Update fileStatus to match the actual file rather than the
             // symbolic link, thus forcing the file to be copied below.
             fileStatus = optimisticLStatOrNull(externalPath);
+            dereferenceEntry = true;
           }
         }
 
@@ -768,7 +772,7 @@ Previous builder: ${previousBuilder.outputPath}, this builder: ${outputPath}`
         }
 
         if (isDirectory) {
-          await walk(thisAbsFrom, thisRelTo);
+          await walk(thisAbsFrom, thisRelTo, dereferenceEntry);
           continue;
         }
 
