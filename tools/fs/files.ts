@@ -933,12 +933,28 @@ export const createTarball = Profile(function (_: string, tarball: string) {
 // is in a state other than initial or final".)
 export const renameDirAlmostAtomically =
 Profile("files.renameDirAlmostAtomically", async (fromDir: string, toDir: string) => {
-  const garbageDir = pathJoin(
-    pathDirname(toDir),
-    // Begin the base filename with a '.' character so that it can be
-    // ignored by other directory-scanning code.
-    `.${pathBasename(toDir)}-garbage-${utils.randomToken()}`,
-  );
+  const parentDir = pathDirname(toDir);
+  // Begin the base filename with a '.' character so that it can be
+  // ignored by other directory-scanning code.
+  const garbagePrefix = `.${pathBasename(toDir)}-garbage-`;
+
+  // Copies left behind by an earlier replacement of this directory that was
+  // killed before it could take out its own trash; without this they accumulate
+  // one per interrupted build. Collected before the rename below creates this
+  // replacement's own copy.
+  let leakedGarbageDirs: string[] = [];
+  try {
+    leakedGarbageDirs = readdir(parentDir)
+      .filter(entry => entry.startsWith(garbagePrefix))
+      .map(entry => pathJoin(parentDir, entry));
+  } catch (e: any) {
+    // A parent we cannot list has nothing recoverable in it.
+    if (e.code !== 'ENOENT' && e.code !== 'ENOTDIR') {
+      throw e;
+    }
+  }
+
+  const garbageDir = pathJoin(parentDir, garbagePrefix + utils.randomToken());
 
   // Get old dir out of the way, if it exists.
   let cleanupGarbage = false;
@@ -988,6 +1004,16 @@ Profile("files.renameDirAlmostAtomically", async (fromDir: string, toDir: string
   if (cleanupGarbage) {
     // We don't care about how long this takes, so we'll let it go async.
     await rm_recursive_async(garbageDir);
+  }
+
+  for (const leakedGarbageDir of leakedGarbageDirs) {
+    // Another build may be removing the same copy; losing that race only leaves
+    // disk space behind, so it must not fail the build that noticed it.
+    try {
+      await rm_recursive_async(leakedGarbageDir);
+    } catch (e) {
+      // Deliberately ignored, see above.
+    }
   }
 });
 
