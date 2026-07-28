@@ -885,7 +885,7 @@ Object.assign(Isopack.prototype, {
 
     // If we're loading from an IsopackCache, we need to load the WatchSets
     // which will be used by the bundler.  (builtBy is only used by
-    // IsopackCache._checkUpToDate. pluginProviderPackageMap will actually be
+    // IsopackCache._whyNotUpToDate. pluginProviderPackageMap will actually be
     // set by IsopackCache afterwards, because it has access to an appropriate
     // PackageMap which can be subset to create a new PackageMap object.)
     var unibuildWatchSets = {};

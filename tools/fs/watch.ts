@@ -139,7 +139,7 @@ export class WatchSet {
   // potentiallyUnusedFiles Set and prevents them from being considered as
   // potentially unused in the future. Either way, this.files will have
   // the same contents as if addFile was called instead, which is
-  // important for checks such as IsopackCache._checkUpToDate, which need
+  // important for checks such as IsopackCache._whyNotUpToDate, which need
   // to take everything (even potentially unused files) into account.
   private potentiallyUnusedFiles = new Set<string>();
 

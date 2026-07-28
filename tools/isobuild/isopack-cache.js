@@ -15,6 +15,19 @@ import {
 var Console = require('../console/console.js').Console;
 import { requestGarbageCollection } from "../utils/gc.js";
 
+// Why a package saved in the cache could not be used as it stands, worded to
+// follow "Rebuilding <package> because".
+const NOTHING_BUILT_YET = 'nothing was built for it yet';
+const SOURCES_CHANGED = 'its sources changed';
+const BUILT_BY_ANOTHER_TOOL_VERSION = 'it was built by another version of the tool';
+const BUILT_FOR_OTHER_PACKAGE_VERSIONS = 'it was built for other package versions';
+const BUILT_FOR_OTHER_CORDOVA_SETTING = 'it was built for a different Cordova setting';
+
+// The reasons a build expects to find, and so says nothing about. The rest mean
+// the cache held a configuration this build does not share, which is worth a
+// word: two applications that disagree rebuild what the other saved, every time.
+const EXPECTED_REBUILD_REASONS = [NOTHING_BUILT_YET, SOURCES_CHANGED];
+
 export class IsopackCache {
   constructor(options) {
     var self = this;
@@ -36,6 +49,9 @@ export class IsopackCache {
     // platforms. (Note that we need to be careful with 'meteor publish' to still
     // publish a web.cordova unibuild!)
     self._includeCordovaUnibuild = !! options.includeCordovaUnibuild;
+
+    // Whether _reportRebuild has already said why a package was built again.
+    self._reportedRebuild = false;
 
     // Defines the versions of packages that we build. Must be set.
     self._packageMap = options.packageMap;
@@ -354,9 +370,9 @@ export class IsopackCache {
     // Do we have an up-to-date package on disk?
     var isopackBuildInfoJson = self.cacheDir && files.readJSONOrNull(
       self._isopackBuildInfoPath(name));
-    var upToDate = await self._checkUpToDate(isopackBuildInfoJson);
+    var whyNotUpToDate = await self._whyNotUpToDate(isopackBuildInfoJson);
 
-    if (upToDate) {
+    if (! whyNotUpToDate) {
       // Reuse existing plugin cache dir
       pluginCacheDir && files.mkdir_p(pluginCacheDir);
 
@@ -365,7 +381,7 @@ export class IsopackCache {
         isopackBuildInfoJson: isopackBuildInfoJson,
         pluginCacheDir: pluginCacheDir
       });
-      // _checkUpToDate already verified that
+      // _whyNotUpToDate already verified that
       // isopackBuildInfoJson.pluginProviderPackageMap is a subset of
       // self._packageMap, so this operation is correct. (It can't be done
       // by isopack.initFromPath, because Isopack doesn't have access to
@@ -380,6 +396,8 @@ export class IsopackCache {
       await self._lintLocalPackage(packageInfo.packageSource, isopack);
     } else {
       // Nope! Compile it again. Give it a fresh plugin cache.
+      self._reportRebuild(name, whyNotUpToDate);
+
       if (pluginCacheDir) {
         await files.rm_recursive_deferred(pluginCacheDir);
         files.mkdir_p(pluginCacheDir);
@@ -463,31 +481,33 @@ export class IsopackCache {
     }
   }
 
-  _checkUpToDate(isopackBuildInfoJson) {
+  // Says why the isopack saved in the cache cannot be used as it stands, or
+  // returns null when it can.
+  _whyNotUpToDate(isopackBuildInfoJson) {
     var self = this;
     // If there isn't an isopack-buildinfo.json file, then we definitely aren't
     // up to date!
     if (! isopackBuildInfoJson) {
-      return false;
+      return NOTHING_BUILT_YET;
     }
 
     // If we include Cordova but this Isopack doesn't, or via versa, then we're
     // not up to date.
     if (self._includeCordovaUnibuild !==
         isopackBuildInfoJson.includeCordovaUnibuild) {
-      return false;
+      return BUILT_FOR_OTHER_CORDOVA_SETTING;
     }
 
     // Was the package built by a different compiler version?
     if (isopackBuildInfoJson.builtBy !== compiler.BUILT_BY) {
-      return false;
+      return BUILT_BY_ANOTHER_TOOL_VERSION;
     }
 
     // If any of the direct dependencies changed their version or location, we
     // aren't up to date.
     if (!self._packageMap.isSupersetOfJSON(
       isopackBuildInfoJson.pluginProviderPackageMap)) {
-      return false;
+      return BUILT_FOR_OTHER_PACKAGE_VERSIONS;
     }
     // Merge in the watchsets for all unibuilds and plugins in the package, then
     // check it once.
@@ -497,7 +517,27 @@ export class IsopackCache {
     _.each(isopackBuildInfoJson.unibuildDependencies, function (deps) {
       watchSet.merge(watch.WatchSet.fromJSON(deps));
     });
-    return watch.isUpToDate(watchSet);
+
+    if (! watch.isUpToDate(watchSet)) {
+      return SOURCES_CHANGED;
+    }
+
+    return null;
+  }
+
+  // Says once per build why a package could not be taken from the cache, when
+  // what the cache held was built under a configuration this build does not
+  // share. Once is enough: a version change invalidates many packages at the
+  // same time, and one line already tells an expected rebuild from a cache two
+  // disagreeing builds keep overwriting, which reports this every build.
+  _reportRebuild(name, whyNotUpToDate) {
+    var self = this;
+    if (self._reportedRebuild || EXPECTED_REBUILD_REASONS.includes(whyNotUpToDate)) {
+      return;
+    }
+
+    self._reportedRebuild = true;
+    Console.info(`Rebuilding ${name} because ${whyNotUpToDate}.`);
   }
 
   _checkUpToDatePreloaded(previousIsopack) {
