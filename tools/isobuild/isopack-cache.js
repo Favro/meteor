@@ -8,7 +8,6 @@ var watch = require('../fs/watch');
 var colonConverter = require('../utils/colon-converter.js');
 var Profile = require('../tool-env/profile').Profile;
 import {
-  defaultLockRoot,
   exclusiveLockPath,
   withExclusiveLock,
 } from '../fs/exclusive-lock';
@@ -35,6 +34,15 @@ export class IsopackCache {
 
     // cacheDir may be null; in this case, we just don't ever save things to disk.
     self.cacheDir = options.cacheDir;
+
+    // Where to keep the locks for this cache's packages, from the caller that
+    // knows whether anything else can reach it. Null for a cache nothing else
+    // reaches, which then takes no locks at all: one belonging to a single
+    // project, or one held only in memory.
+    self._lockRoot = options.lockRoot;
+    if (self._lockRoot && ! self.cacheDir) {
+      throw Error("lockRoot without a cacheDir to lock!");
+    }
 
     // Root directory for caches used by build plugins.  Can be null, in which
     // case we never give the build plugins a cache.  The directory structure is:
@@ -101,25 +109,65 @@ export class IsopackCache {
 
   async wipeCachedPackages(packages) {
     var self = this;
-    if (packages) {
-      // Wipe specific packages.
-      for (const packageName of packages) {
-        if (self.cacheDir) {
-          await files.rm_recursive_deferred(self._isopackDir(packageName));
-        }
-        if (self._pluginCacheDirRoot) {
-          await files.rm_recursive_deferred(self._pluginCacheDirForPackage(packageName));
-        }
-      }
-    } else {
-      // Wipe all packages.
-      if (self.cacheDir) {
-        await files.rm_recursive_deferred(self.cacheDir);
-      }
-      if (self._pluginCacheDirRoot) {
-        await files.rm_recursive_deferred(self._pluginCacheDirRoot);
-      }
+
+    // Each package goes under the lock for its place in the cache, so that a
+    // build sharing this cache is not reading one as it is taken away.
+    //
+    // The cache directory itself stays even when everything in it goes: locks
+    // are named after the directory containing what they stand for, and a
+    // replacement directory would name every lock anew while other builds still
+    // held the old ones.
+    for (const isopackDir of self._cachedIsopackDirs(packages)) {
+      await self._withIsopackDirLock(isopackDir, function () {
+        Console.info(`Waiting for another build to finish with ` +
+          `${files.pathBasename(isopackDir)}...`);
+      }, () => files.rm_recursive_deferred(isopackDir));
     }
+
+    if (! self._pluginCacheDirRoot) {
+      return;
+    }
+
+    // A plugin cache belongs to the one project that built it rather than to a
+    // cache builds share, so nothing else is looking at this.
+    if (packages) {
+      for (const packageName of packages) {
+        await files.rm_recursive_deferred(
+          self._pluginCacheDirForPackage(packageName));
+      }
+
+      return;
+    }
+
+    await files.rm_recursive_deferred(self._pluginCacheDirRoot);
+  }
+
+  // The places in the cache to wipe for the given package names, or everything in
+  // it when no names were given. Named packages are resolved to where they would
+  // go; a wipe of everything takes what is there instead, so that a package this
+  // project has since stopped using is wiped as well.
+  _cachedIsopackDirs(packages) {
+    var self = this;
+    if (! self.cacheDir) {
+      return [];
+    }
+
+    if (packages) {
+      return packages.map(packageName => self._isopackDir(packageName));
+    }
+
+    // Nothing saved here yet, so nothing to wipe.
+    if (! files.exists(self.cacheDir)) {
+      return [];
+    }
+
+    return files.readdir(self.cacheDir)
+      // A dot-prefixed entry is another build's temporary directory, wearing the
+      // name that directory-scanning code agrees to ignore. It is locked under
+      // the name of the package it will become, not its own, so taking it from
+      // here would take it out from under the build writing it.
+      .filter(entry => ! entry.startsWith('.'))
+      .map(entry => files.pathJoin(self.cacheDir, entry));
   }
 
   // Returns the isopack (already loaded in memory) for a given name. It is an
@@ -443,27 +491,33 @@ export class IsopackCache {
   // the isopack only ever lives in memory, where no other build can reach it,
   // and nothing is taken.
   //
-  // One of these is held at a time, which is what keeps two builds from waiting
-  // on each other: _ensurePackageLoaded loads everything a package needs before
-  // building it, so the packages compiling under this lock are already loaded and
-  // ask for no lock of their own.
+  // Only one of these is held at a time, which is what keeps two builds from
+  // waiting on each other: _ensurePackageLoaded loads everything a package needs
+  // before building it, so nothing compiling under this lock asks for another.
+  // A wipe takes the same locks one at a time for the same reason.
   async _withIsopackLock(name, callback) {
     var self = this;
     if (! self.cacheDir) {
       return await callback();
     }
 
-    // Named after the directory rather than the package, so that two builds meet
-    // only when they would use the same place on disk, and one that has a cache
-    // to itself contends with nobody.
-    const lockPath = exclusiveLockPath(defaultLockRoot(), self._isopackDir(name));
-
-    return await withExclusiveLock(lockPath, {
-      onWaiting() {
-        Console.info(
-          `Waiting for another build to finish building ${name}...`);
-      },
+    return await self._withIsopackDirLock(self._isopackDir(name), function () {
+      Console.info(`Waiting for another build to finish building ${name}...`);
     }, callback);
+  }
+
+  // Runs the callback while holding the lock for one place in the cache. Named
+  // after the directory rather than the package that goes in it, so that two
+  // builds meet only when they would use the same place on disk.
+  async _withIsopackDirLock(isopackDir, onWaiting, callback) {
+    var self = this;
+    // A cache nothing else can reach has nothing to take turns with.
+    if (! self._lockRoot) {
+      return await callback();
+    }
+
+    return await withExclusiveLock(
+      exclusiveLockPath(self._lockRoot, isopackDir), { onWaiting }, callback);
   }
 
   // Runs appropriate linters on a package. It also augments their unibuilds'

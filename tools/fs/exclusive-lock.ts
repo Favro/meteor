@@ -25,8 +25,9 @@
 /// XXX On a filesystem that numbers no inodes, one directory reached through two
 ///     capitalizations is taken for two.
 ///
-/// Closing those means locks that live with the resource, where they would show
-/// up as untracked files in whatever repository it is checked out from.
+/// A caller that shares a resource on purpose, as an isopack cache pointed at by
+/// more than one application is shared, should name a lock root beside that
+/// resource, so that everything reaching the resource reaches the locks too.
 
 import { createHash } from "crypto";
 import os from "os";

@@ -182,6 +182,27 @@ Object.assign(ProjectContext.prototype, {
       : (options.projectLocalDir ||
         files.pathJoin(self.projectDir, '.meteor', 'local'));
 
+    // Where the isopacks of local packages are cached: this project's own local
+    // directory, unless METEOR_ISOPACK_CACHE_DIR points somewhere applications
+    // built from the same sources can share, building each package once between
+    // them. Sharing is safe because a build takes what it finds only if it
+    // resolves the same sources for it, and takes a lock per package while
+    // running.
+    self.isopackCacheDir = process.env.METEOR_ISOPACK_CACHE_DIR
+      ? files.pathResolve(options.projectDir,
+        files.convertToStandardPath(process.env.METEOR_ISOPACK_CACHE_DIR))
+      : null;
+
+    // Locks for a shared cache go beside it: the one place every application
+    // using the cache can be counted on to look, where a place belonging to one
+    // checkout or one user would not be. A sibling rather than a subdirectory,
+    // so that it outlives a cache that is wiped and is never mistaken for a
+    // package. A cache in the project's own local directory is reached by
+    // nothing else and needs no locks.
+    self.isopackCacheLockRoot = self.isopackCacheDir
+      ? self.isopackCacheDir + '.locks'
+      : null;
+
     addWatchRoot(self.projectDir);
 
     // Used by 'meteor rebuild'; true to rebuild all packages, or a list of
@@ -1010,7 +1031,9 @@ Object.assign(ProjectContext.prototype, {
       packageMap: self.packageMap,
       includeCordovaUnibuild: (self._forceIncludeCordovaUnibuild
                                || self.platformList.usesCordova()),
-      cacheDir: self.getProjectLocalDirectory('isopacks'),
+      cacheDir: self.isopackCacheDir
+                || self.getProjectLocalDirectory('isopacks'),
+      lockRoot: self.isopackCacheLockRoot,
       pluginCacheDirRoot: self.getProjectLocalDirectory('plugin-cache'),
       tropohouse: self.tropohouse,
       previousIsopackCache: self._previousIsopackCache,
