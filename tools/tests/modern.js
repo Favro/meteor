@@ -61,8 +61,11 @@ selftest.define("modern build stack - legacy", async function () {
 
     /* check legacy stack */
     selftest.expectTrue(/Babel\.compile/.test(out));
-    selftest.expectTrue(/safeWatcher\.watchLegacy/.test(out));
     selftest.expectTrue(/_findSources for web\.browser\.legacy/.test(out));
+
+    /* the watcher stays on outside modern mode */
+    selftest.expectTrue(/safeWatcher\.watchModern/.test(out));
+    selftest.expectFalse(/safeWatcher\.watchLegacy/.test(out));
 
     /* check debug stack */
     selftest.expectTrue(/server\/main\.js:6:22/.test(out));

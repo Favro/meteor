@@ -23,10 +23,16 @@ const DEFAULT_MODERN = {
   cordova: true,
 };
 
+// Features on by default even when modern mode as a whole is off; an explicit
+// `false` still turns them off. Upstream turns all of modern mode on from 3.5.1,
+// so this goes away on rebase.
+const ON_WITHOUT_MODERN = new Set(["watcher"]);
+
 /**
  * Normalizes the modern configuration by applying default values.
  * @param {boolean|Object} r - The input modern configuration. If true, uses all defaults.
- *                             If false, disables all modern features. If an object, merges with defaults.
+ *                             If false, disables all modern features but ON_WITHOUT_MODERN.
+ *                             If an object, merges with defaults.
  * @returns {Object} - The normalized modern configuration object.
  */
 export const normalizeModernConfig = (r = false) => Object.fromEntries(
@@ -34,7 +40,7 @@ export const normalizeModernConfig = (r = false) => Object.fromEntries(
     k,
     r === true
       ? def
-      : r === false || r?.[k] === false
+      : r?.[k] === false || (r === false && !ON_WITHOUT_MODERN.has(k))
         ? false
         : typeof r?.[k] === 'object'
           ? { ...r[k] }
