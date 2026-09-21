@@ -298,7 +298,15 @@ async function ensureWatchRoot(dirPath: string): Promise<void> {
   // Check that osDirPath is indeed a directory.
   try {
     const stats = statOrNull(osDirPath);
-    if (!stats?.isDirectory()) {
+    if (!stats) {
+      // Module resolution stats many paths that do not exist, and the
+      // optimistic cache asks to watch each of them. The parent of such a
+      // path is often missing too, which is routine rather than a problem:
+      // nothing below it can change until it is created.
+      ignoredWatchRoots.add(dirPath);
+      return;
+    }
+    if (!stats.isDirectory()) {
       console.warn(`Skipping watcher for ${osDirPath}: not a directory`);
       ignoredWatchRoots.add(dirPath);
       return;
