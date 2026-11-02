@@ -2197,6 +2197,10 @@ testCommandOptions = {
 
     // Undocumented. See #Once
     once: { type: Boolean },
+    // Undocumented. Builds the test app where the runner would run it from and
+    // exits, so that it can be run with node, without the build tool holding
+    // its caches in memory for as long as the tests run.
+    'build-only': { type: Boolean },
     // Undocumented. To ensure that QA covers both
     // PollingObserveDriver and OplogObserveDriver, this option
     // disables oplog for tests.  (It still creates a replset, it just
@@ -2267,6 +2271,12 @@ main.registerCommand(Object.assign(
 });
 
 async function doTestCommand(options) {
+  // The temporary test app directory is removed on exit, and the build with it.
+  if (options['build-only'] && !options['test-app-path']) {
+    Console.error("--build-only needs --test-app-path to build into.");
+    return 1;
+  }
+
   if (options.filter) {
     process.env.TINYTEST_FILTER = options.filter;
   }
@@ -2622,6 +2632,8 @@ var runTestAppForPackages = async function (projectContext, options) {
       buildOptions: buildOptions,
       recordPackageUsage: false
     });
+  } else if (options['build-only']) {
+    return await buildTestApp(projectContext, buildOptions);
   } else {
     var runAll = require('../runners/run-all.js');
     return runAll.run({
@@ -2661,6 +2673,36 @@ var runTestAppForPackages = async function (projectContext, options) {
       }
     });
   }
+};
+
+// Bundles the way the runner does, into its build directory with node_modules
+// linked rather than copied, so the result runs with `node main.js` given the
+// environment the runner would set.
+var buildTestApp = async function (projectContext, buildOptions) {
+  // Compiler plugins read it from this process, and runAll.run defaults it so.
+  if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = "development";
+  }
+
+  await main.captureAndExit("=> Errors while initializing project:", function () {
+    return projectContext.prepareProjectForBuild();
+  });
+
+  var bundler = require('../isobuild/bundler.js');
+  var bundleResult = await bundler.bundle({
+    projectContext: projectContext,
+    outputPath: projectContext.getProjectLocalDirectory('build'),
+    includeNodeModules: "symlink",
+    buildOptions: buildOptions
+  });
+
+  if (bundleResult.errors) {
+    Console.error("Errors prevented bundling:");
+    Console.error(bundleResult.errors.formatMessages());
+    return 1;
+  }
+
+  return 0;
 };
 
 

@@ -692,3 +692,37 @@ selftest.define(
     });
   }
 );
+
+selftest.define(
+  'meteor test-packages --build-only',
+  async function () {
+    var s = new Sandbox();
+    await s.init();
+
+    var run;
+    var testAppPath = '/tmp/meteor_test_build_only';
+    await files.rm_recursive(testAppPath);
+    await s.createApp('build-only-app', 'package-tests', {
+      dontPrepareApp: true
+    });
+    await s.cd('build-only-app/packages/say-something', async function () {
+      // A temporary test app is removed on exit, so there is nowhere for the
+      // build to stay.
+      run = s.run('test-packages', '--build-only', './');
+      await run.matchErr('--build-only needs --test-app-path');
+      await run.expectExit(1);
+
+      run = s.run(
+        'test-packages',
+        '--build-only',
+        { 'test-app-path': testAppPath },
+        './'
+      );
+      run.waitSecs(120);
+      await run.expectExit(0);
+      selftest.expectTrue(
+        files.exists(testAppPath + '/.meteor/local/build/main.js'));
+      await files.rm_recursive(testAppPath);
+    });
+  }
+);
