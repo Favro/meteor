@@ -79,11 +79,56 @@ function getEntry(path: string): Entry | null | undefined {
 }
 
 function setEntry(path: string, entry: Entry | null): void {
+  if (! entries.has(path)) {
+    countEntryBelowAncestors(path, 1);
+  }
   entries.set(path, entry);
 }
 
 function deleteEntry(path: string): void {
-  entries.delete(path);
+  if (entries.delete(path)) {
+    countEntryBelowAncestors(path, -1);
+  }
+}
+
+// How many entries lie below each directory, so that an event for a directory
+// finds out cheaply whether it has entries below it to reach.
+const entryCountsBelow = new Map<string, number>();
+
+function countEntryBelowAncestors(path: string, delta: number): void {
+  let currentPath = path;
+  while (true) {
+    const parentPath = pathDirname(currentPath);
+    if (parentPath === currentPath) {
+      return;
+    }
+
+    const count = (entryCountsBelow.get(parentPath) || 0) + delta;
+    if (count > 0) {
+      entryCountsBelow.set(parentPath, count);
+    } else {
+      entryCountsBelow.delete(parentPath);
+    }
+
+    currentPath = parentPath;
+  }
+}
+
+// A directory that is created or deleted as a whole, as one renamed into place
+// over another is, comes as an event for the directory alone, with none for what
+// is below it. Everything watched below it has changed as well, and is told so
+// here; otherwise what was cached about it would never be dropped.
+function fireEntriesBelow(dirPath: string, event: string): void {
+  if (! entryCountsBelow.has(dirPath)) {
+    return;
+  }
+
+  const prefix = dirPath + "/";
+  for (const [watchedPath, entry] of Array.from(entries)) {
+    if (entry && watchedPath.startsWith(prefix)) {
+      entry._fire(event);
+    }
+  }
 }
 
 function findNearestEntry(startPath: string): Entry | null {
@@ -347,11 +392,15 @@ async function ensureWatchRoot(dirPath: string): Promise<void> {
           // Dispatch each event to any registered entries.
           for (const event of events) {
             const changedPath = toPosixPath(event.path);
-            const entry = findNearestEntry(changedPath);
-            if (!entry) continue;
             // In Meteor's safe-watcher API, both create/update trigger "change" events.
             const evtType = event.type === "delete" ? "delete" : "change";
-            entry._fire(evtType);
+            const entry = findNearestEntry(changedPath);
+            if (entry) {
+              entry._fire(evtType);
+            }
+            if (event.type !== "update") {
+              fireEntriesBelow(changedPath, evtType);
+            }
           }
         },
         { ignore: ignorePatterns }
@@ -630,7 +679,7 @@ function rewatchPolling(root: string) {
       entry.close();
 
       // Remove it from the map
-      entries.delete(watchedPath);
+      deleteEntry(watchedPath);
 
       // Re-watch via polling for each callback
       for (const cb of callbacks) {
