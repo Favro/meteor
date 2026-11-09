@@ -88,57 +88,28 @@ var updateTestPackageWithDevDepends = async function (
 var _assertCorrectPackageNpmDir = function (projectContext, deps, context = 'package') {
   // test-package/.npm was generated
 
-  // Get the actual npm-shrinkwrap.json content
-  var actualShrinkwrapContent = JSON.parse(
-    files.readFile(
-      files.pathJoin(
-        getTestPackageDir(projectContext),
-        ".npm",
-        context,
-        "npm-shrinkwrap.json"
-      ),
-      "utf8"
-    )
-  );
-  var actualMeteorNpmShrinkwrapDependencies =
-    actualShrinkwrapContent.dependencies;
+  var npmDir = files.pathJoin(getTestPackageDir(projectContext), ".npm", context);
+  var readJson = function (name) {
+    return JSON.parse(files.readFile(files.pathJoin(npmDir, name), "utf8"));
+  };
 
-  // Instead of comparing the entire JSON string, we'll verify that each expected dependency
-  // exists in the actual dependencies with the correct version
+  // package.json lists exactly the expected dependencies, and the lockfile
+  // pins them at the expected versions
+  assert.deepEqual(readJson("package.json").dependencies, deps);
+
+  var lockedPackages = readJson("package-lock.json").packages;
+  assert.deepEqual(lockedPackages[""].dependencies, deps);
   _.each(deps, function (version, name) {
-    // Check that the dependency exists
-    assert(
-      actualMeteorNpmShrinkwrapDependencies[name],
-      `Dependency ${name} not found in npm-shrinkwrap.json`
-    );
+    var locked = lockedPackages["node_modules/" + name];
+    assert(locked, `Dependency ${name} not found in package-lock.json`);
 
-    // Check that the version matches
     if (!/tarball/.test(version)) {
       assert.equal(
-        actualMeteorNpmShrinkwrapDependencies[name].version,
+        locked.version,
         version,
-        `Expected version ${version} for ${name}, but got ${actualMeteorNpmShrinkwrapDependencies[name].version}`
+        `Expected version ${version} for ${name}, but got ${locked.version}`
       );
     }
-  });
-
-  // Check that there are no extra dependencies
-  var actualDependencyNames = Object.keys(
-    actualMeteorNpmShrinkwrapDependencies
-  );
-  var expectedDependencyNames = Object.keys(deps);
-
-  assert.equal(
-    actualDependencyNames.length,
-    expectedDependencyNames.length,
-    `Expected ${expectedDependencyNames.length} dependencies, but found ${actualDependencyNames.length}`
-  );
-
-  _.each(actualDependencyNames, function (name) {
-    assert(
-      name in deps,
-      `Unexpected dependency ${name} found in npm-shrinkwrap.json`
-    );
   });
 
   var testPackageDir = getTestPackageDir(projectContext);
