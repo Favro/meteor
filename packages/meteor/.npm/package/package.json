@@ -1,0 +1,7 @@
+{
+  "name": "meteor",
+  "private": true,
+  "dependencies": {
+    "denque": "2.1.0"
+  }
+}

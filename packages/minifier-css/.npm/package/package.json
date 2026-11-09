@@ -1,0 +1,8 @@
+{
+  "name": "minifier-css",
+  "private": true,
+  "dependencies": {
+    "postcss": "8.5.1",
+    "cssnano": "5.1.15"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "ecmascript",
+  "private": true,
+  "dependencies": {
+    "@babel/runtime": "7.20.7"
+  }
+}

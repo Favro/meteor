@@ -1,0 +1,8 @@
+{
+  "name": "inter-process-messaging",
+  "private": true,
+  "dependencies": {
+    "uuid": "3.3.2",
+    "arson": "0.2.6"
+  }
+}

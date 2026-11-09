@@ -1,0 +1,8 @@
+{
+  "name": "react-fast-refresh",
+  "private": true,
+  "dependencies": {
+    "react-refresh": "0.14.0",
+    "semver": "7.5.4"
+  }
+}

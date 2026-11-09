@@ -1,0 +1,7 @@
+{
+  "name": "boilerplate-generator",
+  "private": true,
+  "dependencies": {
+    "combined-stream2": "1.1.2"
+  }
+}

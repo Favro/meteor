@@ -1,0 +1,11 @@
+{
+  "name": "socket-stream-client",
+  "private": true,
+  "dependencies": {
+    "faye-websocket": "file:../../../../npm-packages/faye-websocket-node",
+    "permessage-deflate": "file:../../../../npm-packages/permessage-deflate-node",
+    "websocket-driver": "0.7.4",
+    "lodash.isequal": "4.5.0",
+    "lodash.once": "4.1.1"
+  }
+}

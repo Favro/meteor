@@ -1,0 +1,8 @@
+{
+  "name": "url",
+  "private": true,
+  "dependencies": {
+    "core-js": "3.39.0",
+    "url-search-params-polyfill": "8.2.5"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "modules",
+  "private": true,
+  "dependencies": {
+    "@meteorjs/reify": "0.25.4"
+  }
+}
