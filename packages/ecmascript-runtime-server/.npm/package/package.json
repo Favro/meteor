@@ -1,0 +1,7 @@
+{
+  "name": "ecmascript-runtime-server",
+  "private": true,
+  "dependencies": {
+    "core-js": "3.38.1"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "promise",
+  "private": true,
+  "dependencies": {
+    "promise": "8.1.0"
+  }
+}

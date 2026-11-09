@@ -1,0 +1,7 @@
+{
+  "name": "minifier-js",
+  "private": true,
+  "dependencies": {
+    "terser": "5.31.0"
+  }
+}

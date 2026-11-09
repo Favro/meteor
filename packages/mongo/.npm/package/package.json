@@ -1,0 +1,14 @@
+{
+  "name": "mongo",
+  "private": true,
+  "dependencies": {
+    "mongodb-uri": "0.9.7",
+    "lodash.times": "4.3.2",
+    "lodash.isempty": "4.4.0",
+    "lodash.has": "4.5.2",
+    "lodash.throttle": "4.1.1",
+    "lodash.once": "4.1.1",
+    "lodash.isobject": "3.0.2",
+    "lodash.clone": "4.5.0"
+  }
+}

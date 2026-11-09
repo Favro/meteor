@@ -31,8 +31,12 @@ mongo-test-output
 # core packages shouldn't have .versions files
 packages/*/.versions
 
-# packages shouldn't have .npm on Git
-packages/**/.npm
+# A package's .npm directories hold the package.json and package-lock.json its
+# npm dependencies are installed from, which belong in Git; what npm installs,
+# and the directories an install works in, do not.
+packages/**/.npm/**/node_modules
+packages/**/.npm/**/*-new-*/
+packages/**/.npm/**/.*-garbage-*/
 
 # doc files should not be committed
 packages/**/*.docs.js

@@ -1,0 +1,7 @@
+{
+  "name": "mongo-decimal",
+  "private": true,
+  "dependencies": {
+    "decimal.js": "10.3.1"
+  }
+}

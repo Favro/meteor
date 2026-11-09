@@ -1,0 +1,7 @@
+{
+  "name": "ecmascript-runtime-client",
+  "private": true,
+  "dependencies": {
+    "core-js": "3.15.2"
+  }
+}

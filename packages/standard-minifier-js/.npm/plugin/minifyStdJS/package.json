@@ -1,0 +1,12 @@
+{
+  "name": "minifystdjs",
+  "private": true,
+  "dependencies": {
+    "@meteorjs/swc-core": "1.15.3",
+    "acorn": "8.10.0",
+    "@babel/runtime": "7.18.9",
+    "@babel/parser": "7.22.7",
+    "terser": "5.19.2",
+    "@meteorjs/reify": "0.25.4"
+  }
+}
