@@ -34,7 +34,7 @@ var compiler = exports;
 // dependencies. (At least for now, packages only used in target creation (eg
 // minifiers) don't require you to update BUILT_BY, though you will need to quit
 // and rerun "meteor run".)
-compiler.BUILT_BY = 'meteor/34';
+compiler.BUILT_BY = 'meteor/35';
 
 // This is a list of all possible architectures that a build can target. (Client
 // is expanded into 'web.browser' and 'web.cordova')
@@ -78,7 +78,7 @@ compiler.compile = Profile(function (packageSource, options) {
         npmDependencies: info.npmDependencies,
         // Plugins have their own npm dependencies separate from the
         // rest of the package, so they need their own separate npm
-        // shrinkwrap and cache state.
+        // lockfile and cache state.
         npmDir: files.pathResolve(files.pathJoin(
             packageSource.sourceRoot,
             '.npm', 'plugin', colonConverter.convert(info.name)
@@ -462,20 +462,20 @@ var compileUnibuild = Profile(function (options) {
       local: false,
     });
 
-    // If this slice has node modules, we should consider the shrinkwrap file
+    // If this slice has node modules, we should consider the lockfile
     // to be part of its inputs. (This is a little racy because there's no
     // guarantee that what we read here is precisely the version that's used,
     // but it's better than nothing at all.)
     //
     // Note that this also means that npm modules used by plugins will get
-    // this npm-shrinkwrap.json in their pluginDependencies (including for all
+    // this package-lock.json in their pluginDependencies (including for all
     // packages that depend on us)!  This is good: this means that a tweak to
     // an indirect dependency of the coffee-script npm module used by the
     // coffeescript package will correctly cause packages with *.coffee files
     // to be rebuilt.
-    const shrinkwrapPath = nodeModulesPath.replace(
-        /node_modules$/, 'npm-shrinkwrap.json');
-    watch.readAndWatchFile(watchSet, shrinkwrapPath);
+    const lockfilePath = nodeModulesPath.replace(
+        /node_modules$/, 'package-lock.json');
+    watch.readAndWatchFile(watchSet, lockfilePath);
   }
 
   if (devNodeModulesPath) {
@@ -487,20 +487,20 @@ var compileUnibuild = Profile(function (options) {
       local: false,
     });
 
-    // If this slice has node modules, we should consider the shrinkwrap file
+    // If this slice has node modules, we should consider the lockfile
     // to be part of its inputs. (This is a little racy because there's no
     // guarantee that what we read here is precisely the version that's used,
     // but it's better than nothing at all.)
     //
     // Note that this also means that npm modules used by plugins will get
-    // this npm-shrinkwrap.json in their pluginDependencies (including for all
+    // this package-lock.json in their pluginDependencies (including for all
     // packages that depend on us)!  This is good: this means that a tweak to
     // an indirect dependency of the coffee-script npm module used by the
     // coffeescript package will correctly cause packages with *.coffee files
     // to be rebuilt.
-    const shrinkwrapPath = devNodeModulesPath.replace(
-        /node_modules$/, 'npm-shrinkwrap.json');
-    watch.readAndWatchFile(watchSet, shrinkwrapPath);
+    const lockfilePath = devNodeModulesPath.replace(
+        /node_modules$/, 'package-lock.json');
+    watch.readAndWatchFile(watchSet, lockfilePath);
   }
 
   // This function needs to be factored out to support legacy handlers later on

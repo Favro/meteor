@@ -288,7 +288,7 @@ var PackageSource = function () {
 
   // The path relative to which all source file paths are interpreted
   // in this package. Also used to compute the location of the
-  // package's .npm directory (npm shrinkwrap state).
+  // package's .npm directory (npm lockfile state).
   self.sourceRoot = null;
 
   // Path that will be prepended to the URLs of all resources emitted
