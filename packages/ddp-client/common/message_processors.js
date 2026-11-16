@@ -52,6 +52,12 @@ export class MessageProcessors {
     // be resent if still relevant.
     self._updatesForUnknownStores = Object.create(null);
 
+    // Forget about writes we were buffering from the previous session, and
+    // cancel their flush timer. Flushing them before quiescence would reset
+    // all stores while the new session's data is still being buffered, so
+    // every document would disappear until the subscriptions are revived.
+    self._prepareBuffersToFlush();
+
     if (self._resetStores) {
       // Forget about the effects of stubs. We'll be resetting all collections
       // anyway.
