@@ -346,6 +346,11 @@ export class AccountsClient extends AccountsCommon {
           } else {
             this.callLoginMethod({
               methodArguments: [{resume: result.token}],
+              // The subscriptions are sent again right after the reconnect
+              // hooks, so the login method has to be on the new connection
+              // before them. Queued behind the async stubs, it could end up
+              // after a method that was called before the connection was reset.
+              _executeImmediately: true,
               // Reconnect quiescence ensures that the user doesn't see an
               // intermediate state before the login method finishes. So we don't
               // need to show a logging-in animation.
@@ -439,7 +444,11 @@ export class AccountsClient extends AccountsCommon {
     this.connection.applyAsync(
       options.methodName,
       options.methodArguments,
-      { wait: true, onResultReceived },
+      {
+        wait: true,
+        onResultReceived,
+        executeImmediately: options._executeImmediately,
+      },
       loggedInAndDataReadyCallback);
   }
 
