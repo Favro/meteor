@@ -164,3 +164,54 @@ selftest.define("package npm - frozen lockfiles install only what is committed",
   assert.match(await frozenUpdateMessages(dependencies), /in sync/);
   assert.strictEqual(installedVersion(packageNpmDir, "left-pad"), null);
 });
+
+selftest.define("package npm - a linked package is judged by what it links to", async function () {
+  const root = files.mkdtemp("package-npm-linked");
+  const sourceNodeModules = files.pathJoin(root, "source", "node_modules");
+
+  function writePackage(name, fileName) {
+    const packageDir = files.pathJoin(sourceNodeModules, name);
+    files.mkdir_p(packageDir);
+    files.writeFile(files.pathJoin(packageDir, "package.json"),
+      JSON.stringify({ name, version: "1.0.0" }));
+    files.writeFile(files.pathJoin(packageDir, fileName), "");
+  }
+
+  // As a cached isopack holds its npm packages: links to the ones it was built
+  // from.
+  function linkedNodeModules(name, packageNames) {
+    const nodeModulesDir = files.pathJoin(root, name, "node_modules");
+    packageNames.forEach(packageName => {
+      const linkPath = files.pathJoin(nodeModulesDir, packageName);
+      files.mkdir_p(files.pathDirname(linkPath));
+      files.symlink(files.pathJoin(sourceNodeModules, packageName), linkPath);
+    });
+    files.mkdir_p(nodeModulesDir);
+    return nodeModulesDir;
+  }
+
+  writePackage("plain", "index.js");
+  writePackage("native", "binding.node");
+
+  assert.strictEqual(meteorNpm.dependenciesArePortable(
+    linkedNodeModules("portable", ["plain"])), true);
+  assert.strictEqual(meteorNpm.dependenciesArePortable(
+    linkedNodeModules("non-portable", ["plain", "native"])), false);
+
+  writePackage("@scope/native", "binding.node");
+  assert.strictEqual(meteorNpm.dependenciesArePortable(
+    linkedNodeModules("scoped-non-portable", ["plain", "@scope/native"])), false);
+
+  // A link inside a package back up the tree is not followed.
+  writePackage("looping", "index.js");
+  const loopingNodeModules = files.pathJoin(sourceNodeModules, "looping", "node_modules");
+  files.mkdir_p(loopingNodeModules);
+  files.symlink("..", files.pathJoin(loopingNodeModules, "looping"));
+  assert.strictEqual(meteorNpm.dependenciesArePortable(
+    linkedNodeModules("looping", ["looping"])), true);
+
+  // Nor does a link that leads to itself stop the check.
+  const selfLinkedNodeModules = linkedNodeModules("self-linked", ["plain"]);
+  files.symlink("itself", files.pathJoin(selfLinkedNodeModules, "itself"));
+  assert.strictEqual(meteorNpm.dependenciesArePortable(selfLinkedNodeModules), true);
+});

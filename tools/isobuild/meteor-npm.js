@@ -695,8 +695,44 @@ meteorNpm.dependenciesArePortable = function (nodeModulesDir) {
 
   // Only check/write .meteor-portable files in each of the top-level
   // package directories.
-  return isPortable(nodeModulesDir);
+  return arePackagesPortable(nodeModulesDir);
 };
+
+// A cached isopack links each of its npm packages to the one it was built
+// from, so those are judged by what they link to. Links deeper inside a
+// package are not followed, since they could lead back up the tree.
+function arePackagesPortable(nodeModulesDir) {
+  return optimisticReaddir(nodeModulesDir).every(name => {
+    if (name.startsWith(".")) {
+      return true;
+    }
+
+    const entry = files.pathJoin(nodeModulesDir, name);
+    const lstat = optimisticLStat(entry);
+    if (name.startsWith("@") && lstat.isDirectory()) {
+      return arePackagesPortable(entry);
+    }
+
+    if (! lstat.isSymbolicLink()) {
+      return isPortable(entry);
+    }
+
+    // A link that leads nowhere, dangling or looping, is never loaded, so it is
+    // as portable as any file.
+    let target;
+    try {
+      target = files.realpath(entry);
+    } catch (e) {
+      if (e.code !== "ENOENT" && e.code !== "ELOOP") {
+        throw e;
+      }
+
+      return true;
+    }
+
+    return isPortable(target);
+  });
+}
 
 var makeNewPackageNpmDir = function (newPackageNpmDir) {
   // keep track so that we can remove them on process exit
