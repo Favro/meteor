@@ -5,6 +5,9 @@ import { Hook } from 'meteor/callback-hook';
 import url from 'url';
 import nodemailer from 'nodemailer';
 import wellKnow from 'nodemailer/lib/well-known';
+// Imported rather than taken with Npm.require, which looks for the file itself, while nodemailer
+// maps its lib/ paths to dist/ only in package.json exports.
+import mailComposer from 'nodemailer/lib/mail-composer';
 import { openpgpEncrypt } from 'nodemailer-openpgp';
 
 export const Email = {};
@@ -14,7 +17,7 @@ export const EmailInternals = {
   NpmModules: {
     mailcomposer: {
       version: Npm.require('nodemailer/package.json').version,
-      module: Npm.require('nodemailer/lib/mail-composer'),
+      module: mailComposer,
     },
     nodemailer: {
       version: Npm.require('nodemailer/package.json').version,
@@ -24,6 +27,13 @@ export const EmailInternals = {
 };
 
 const MailComposer = EmailInternals.NpmModules.mailcomposer.module;
+
+// Since nodemailer 8 its Mailtrap service is the live host. A Mailtrap service keeps the sandbox it
+// sent to before, so that test mail stays there.
+const mailtrapSandbox = { host: 'smtp.mailtrap.io', port: 2525 };
+const isMailtrap = function (service) {
+  return wellKnow(service) === wellKnow('Mailtrap');
+};
 
 const makeTransport = function (mailUrlString, options) {
   const mailUrl = new URL(mailUrlString);
@@ -51,6 +61,13 @@ const makeTransport = function (mailUrlString, options) {
 
   if (!mailUrl.query.pool) {
     mailUrl.query.pool = 'true';
+  }
+
+  const service = mailUrl.searchParams.get('service');
+  if (service && isMailtrap(service)) {
+    mailUrl.searchParams.delete('service');
+    mailUrl.hostname = mailtrapSandbox.host;
+    mailUrl.port = String(mailtrapSandbox.port);
   }
 
   const transport = nodemailer.createTransport(url.format(mailUrl));
@@ -92,14 +109,17 @@ const knownHostsTransport = function (settings = undefined, url = undefined, opt
     service = host;
   }
 
-  if (!wellKnow(settings?.service || service)) {
+  const serviceName = settings?.service || service;
+  if (!wellKnow(serviceName)) {
     throw new Error(
       'Could not recognize e-mail service. See list at https://nodemailer.com/smtp/well-known/ for services that we can configure for you.'
     );
   }
 
+  const destination = isMailtrap(serviceName) ? mailtrapSandbox : { service: serviceName };
+
   const transport = nodemailer.createTransport({
-    service: settings?.service || service,
+    ...destination,
     auth: {
       user: settings?.user || user,
       pass: settings?.password || password,
@@ -112,6 +132,12 @@ const knownHostsTransport = function (settings = undefined, url = undefined, opt
   return transport;
 };
 EmailTest.knowHostsTransport = knownHostsTransport;
+
+// An smtp: or smtps: URL names its own host, so it is sent there even when nodemailer also knows the
+// host as a service: knownHostsTransport would take the scheme for the service name.
+const isSmtpUrl = function (url) {
+  return ['smtp:', 'smtps:'].includes(new URL(url).protocol);
+};
 
 const getTransport = function (options) {
   const packageSettings = Meteor.settings.packages?.email || {};
@@ -127,7 +153,7 @@ const getTransport = function (options) {
   ) {
     if (
       (packageSettings.service && wellKnow(packageSettings.service)) ||
-      (url && wellKnow(new URL(url).hostname)) ||
+      (url && !isSmtpUrl(url) && wellKnow(new URL(url).hostname)) ||
       wellKnow(url?.split(':')[0] || '')
     ) {
       globalThis.cacheKey = packageSettings.service || 'settings';
@@ -139,6 +165,7 @@ const getTransport = function (options) {
   }
   return globalThis.cache;
 };
+EmailTest.getTransport = getTransport;
 
 let nextDevModeMailId = 0;
 

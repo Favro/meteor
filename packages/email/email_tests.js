@@ -167,6 +167,73 @@ Tinytest.add('email - URL string for known hosts', function (test) {
   );
 });
 
+Tinytest.add('email - Mailtrap service sends to the sandbox', function (test) {
+  const transport = EmailTest.knowHostsTransport({
+    service: 'Mailtrap',
+    user: 'test',
+    password: 'pwd',
+  });
+  test.equal(transport.transporter.options.host, 'smtp.mailtrap.io');
+  test.equal(transport.transporter.options.port, 2525);
+  test.equal(transport.transporter.auth.user, 'test');
+});
+
+function getTransportFor({ mailUrl, packages }) {
+  const previous = {
+    url: process.env.MAIL_URL,
+    cacheKey: globalThis.cacheKey,
+    cache: globalThis.cache,
+    packages: Meteor.settings.packages,
+  };
+  Meteor.settings.packages = packages;
+  process.env.MAIL_URL = mailUrl;
+  globalThis.cacheKey = undefined;
+  try {
+    return EmailTest.getTransport();
+  } finally {
+    if (previous.url === undefined) {
+      delete process.env.MAIL_URL;
+    } else {
+      process.env.MAIL_URL = previous.url;
+    }
+    Meteor.settings.packages = previous.packages;
+    globalThis.cacheKey = previous.cacheKey;
+    globalThis.cache = previous.cache;
+  }
+}
+
+// nodemailer knows disroot.org as a service, but an smtp: URL names the host to send to.
+Tinytest.add('email - SMTP URL for a host nodemailer knows as a service', function (test) {
+  const transport = getTransportFor({ mailUrl: 'smtp://user:pass@disroot.org:587' });
+  test.equal(transport.transporter.options.host, 'disroot.org');
+  test.equal(transport.transporter.options.port, 587);
+  transport.close();
+});
+
+// new URL() ignores leading whitespace, so the URL still is an SMTP URL.
+Tinytest.add('email - SMTP URL with leading whitespace for a host nodemailer knows as a service', function (test) {
+  const transport = getTransportFor({ mailUrl: ' smtp://user:pass@disroot.org:587' });
+  test.equal(transport.transporter.options.host, 'disroot.org');
+  test.equal(transport.transporter.options.port, 587);
+  transport.close();
+});
+
+Tinytest.add('email - SMTP URL with a Mailtrap service sends to the sandbox', function (test) {
+  const transport = getTransportFor({ mailUrl: 'smtp://user:pass@smtp.mailtrap.io:2525?service=Mailtrap' });
+  test.equal(transport.transporter.options.host, 'smtp.mailtrap.io');
+  test.equal(transport.transporter.options.port, 2525);
+  transport.close();
+});
+
+Tinytest.add('email - configured service is used whatever MAIL_URL holds', function (test) {
+  const transport = getTransportFor({
+    mailUrl: 'disabled',
+    packages: { email: { service: 'Gmail', user: 'test', password: 'pwd' } },
+  });
+  test.equal(transport.transporter.options.host, 'smtp.gmail.com');
+  transport.close();
+});
+
 Tinytest.addAsync(
   'email - with custom transport exception',
   async function (test) {

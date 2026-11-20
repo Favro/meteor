@@ -5,7 +5,7 @@ Package.describe({
 
 Npm.depends({
   'chalk': '4.1.2',
-  '@babel/runtime': '7.20.7',
+  '@babel/runtime': '7.29.14',
 });
 
 Npm.strip({

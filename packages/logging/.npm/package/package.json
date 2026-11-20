@@ -3,6 +3,6 @@
   "private": true,
   "dependencies": {
     "chalk": "4.1.2",
-    "@babel/runtime": "7.20.7"
+    "@babel/runtime": "7.29.14"
   }
 }

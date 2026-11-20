@@ -7,7 +7,7 @@ Package.describe({
 });
 
 Npm.depends({
-  '@babel/runtime': '7.20.7'
+  '@babel/runtime': '7.29.14'
 });
 
 Package.onUse(function(api) {

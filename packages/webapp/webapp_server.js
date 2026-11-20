@@ -29,6 +29,8 @@ const createExpressApp = () => {
   // these headers come from these docs: https://expressjs.com/en/api.html#app.settings.table
   app.set('x-powered-by', false);
   app.set('etag', false);
+  // Since the fixes for its array limit advisories, qs parses a key repeated more than 20 times
+  // (arrayLimit) into an object rather than an array. That bound is the fix, so it stays.
   app.set('query parser', qs.parse);
   return app;
 }
